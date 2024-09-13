@@ -1,0 +1,211 @@
+---
+title: "NRPS analysis"
+author: "Edmond Berne"
+date: "2024-08-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r loading_packages, include=FALSE}
+# .libPaths("/home/edmond/R/x86_64-pc-linux-gnu-library/4.3") # path to the R libraries (personnal environnement)
+library(phyloseq)
+library(ampvis2)
+library(ggplot2)
+library(vegan)
+library(dplyr)
+library(tidyr)
+library(readxl)
+library(rprojroot)
+library(ggpubr)
+library(VennDiagram)
+library(plotly)
+library(ggbeeswarm)
+library(vegan)
+# format the html output
+library(kableExtra)
+```
+
+
+```{r loading_data, include=FALSE}
+
+df_feature = read.csv("ressources/data/grouped-feature-table.tsv", sep = "\t")
+df_tax = read.csv("ressources/data/amplicon_annotation.csv", sep = "\t")
+df_meta = read_excel("ressources/data/Metadata.xlsx")
+
+
+df_feature = df_feature %>%
+  tibble::column_to_rownames("ASV")
+
+df_tax = df_tax %>% 
+  tibble::column_to_rownames("ASV")
+
+df_meta = df_meta %>% 
+  tibble::column_to_rownames("Sample_ID")
+
+rownames(df_meta) = gsub("-", ".", rownames(df_meta)) # replace - by . in the sample names to be compatible with the feature table
+
+otu_mat = as.matrix(df_feature)
+tax_mat = as.matrix(df_tax)
+OTU = otu_table(otu_mat, taxa_are_rows = TRUE)
+TAX = tax_table(tax_mat)
+samples = sample_data(df_meta)
+physeq = phyloseq(OTU, TAX, samples)
+saveRDS(physeq, "ressources/RDS/physeq_raw.rds")
+physeq@sam_data$WEEK = ifelse(physeq@sam_data$WEEK == "2weeks", "week 2", 
+                              ifelse(physeq@sam_data$WEEK == "4weeks", "week 4", "week 5"))
+physeq_rhizoplane = subset_samples(physeq, Compartments == "rhizoplane") # subset the rhizoplane samples
+physeq_rhizosphere = subset_samples(physeq, Compartments == "rhizosphere") # subset the rhizosphere samples
+saveRDS(physeq_rhizoplane, "ressources/RDS/physeq_rhizoplane.rds")
+saveRDS(physeq_rhizosphere, "ressources/RDS/physeq_rhizosphere.rds")
+physeq_rhizosphere_ctrl = subset_samples(physeq_rhizosphere, Treatment == "Control") # objects to use to study the control samples only
+physeq_rhizosplane_ctrl = subset_samples(physeq_rhizoplane, Treatment == "Control")
+```
+
+
+```{r rarefaction curves, include=TRUE}
+Rarecurve = function(data, col="WEEK", facet = "Treatment", type) { 
+  cat("Creating rarefaction curve for ", type, " samples\n")
+  p1 = amp_rarecurve(data, color_by = col, stepsize = 100, facet_by = facet)
+  p1 = p1 + theme(axis.text = element_text(size = 14), 
+             axis.title = element_text(size = 20), 
+             legend.text = element_text(size = 18), 
+             legend.title = element_text(size = 20)) +
+    theme(axis.text.x = element_text(angle = 0, hjust = 0.5, size = 14),
+    strip.text = element_text(size = 20)) + # Agrandir le texte du titre de chaque facette + # Mettre les graduations à l'horizontale et les agrandir
+    labs(y = "Number of ASVs")+
+    geom_line(linewidth = 1.5)
+  cat("Saving the plot\n")
+  ggsave(paste0("output/rarefaction_curve_control_", type ,".png"), width = 10, height = 10)
+  return(p1)
+}
+update_week = function(amp_data){
+  amp_data$metadata$WEEK = ifelse(amp_data$metadata$WEEK == "2weeks", "week 2",
+                                  ifelse(amp_data$metadata$WEEK == "4weeks", "week 4", "week 5"))
+  return(amp_data)
+}
+```
+
+```{r rarefaction curves_load, include=TRUE}
+amp_rhizosphere = amp_load(physeq_rhizosphere_ctrl) # creation of the ampvis2 object
+amp_rhizosphere = update_week(amp_rhizosphere)
+amp_rhizoplane = amp_load(physeq_rhizosplane_ctrl)
+amp_rhizoplane = update_week(amp_rhizoplane)
+```
+
+```
+### Rarefaction curves
+- Rhizoplane
+```{r rarecurve_rhizoplane, include = TRUE}
+(plot_rhizoplane = Rarecurve(amp_rhizoplane, "WEEK", "Treatment", "rhizoplane"))
+```
+42000 looks good for the rhizoplane samples. We will use this value for the rarefaction of the rhizoplane samples
+
+- Rhizosphere
+```{r rarecurve_rhizosphere, include = TRUE}
+plot_rhizosphere = Rarecurve(amp_rhizosphere, "WEEK", "Treatment", "rhizosphere")
+plot_rhizosphere
+```
+40000 looks good for the rhizosphere samples. We will use this value for the rarefaction of the rhizosphere samples
+
+```{r rarefaction process, include = FALSE}
+
+rarefaction = function(physeq_obj, type, size){
+    rarefied_physeq_list = list() # a list to store the rarefied phyloseq objects
+    for (i in 1:100) {
+      rarefied_physeq = rarefy_even_depth(physeq_obj, sample.size = size, rngseed = i)
+      rarefied_physeq_list[[i]] = rarefied_physeq
+      cat("Loop number: \r", i, "out of 100")
+    }
+    otu_tables = lapply(rarefied_physeq_list, function(x) otu_table(x)) # regroup all the otu_tables in a list
+
+    cat("All the rarefied phyloseq objects have been created")
+    cat("Converting otu_tables to dataframes...")
+
+    for (i in 1:length(otu_tables)) { # convert all the otu_tables to dataframes
+      otu_tables[[i]] = as.data.frame(otu_tables[[i]])
+      otu_tables[[i]]$ASV = rownames(otu_tables[[i]])
+      cat("Loop number: \r", i, "out of 100")
+    }
+
+    cat("Dataframes created")
+    cat("Concatenating dataframes...")
+
+    df_rare = as.data.frame(otu_tables[[1]]) # create a dataframe with the first otu_table for later
+    for (i in 2:length(otu_tables)) { # Concatenate all the dataframes vertically
+      df_rare = rbind(df_rare, as.data.frame(otu_tables[[i]]))
+      cat("Loop number: \r", i, "out of 100")
+    }
+
+    cat("Rarefied dataframe created\n")
+    cat("Calculating mean and median...\n")
+
+    # Regroup rows by NAME and calculate the mean and median
+    df_rare_mean = df_rare %>% group_by(ASV) %>% summarise(across(everything(), list(mean = mean)))
+    df_rare_median = df_rare %>% group_by(ASV) %>% summarise(across(everything(), list(median = median)))
+
+    names(df_rare_mean) = sub("_mean", "", names(df_rare_mean)) # Remove mean and median to column names
+    names(df_rare_median) = sub("_median", "", names(df_rare_median))
+
+    df_rare_mean = df_rare_mean %>%
+      tibble::column_to_rownames("ASV")
+
+    df_rare_median = df_rare_median %>%
+      tibble::column_to_rownames("ASV")
+
+    df_rare_mean = otu_table(df_rare_mean, taxa_are_rows = TRUE)
+    df_rare_median = otu_table(df_rare_median, taxa_are_rows = TRUE)
+    Rarefied_physeq_mean = phyloseq(df_rare_mean, TAX, samples) # create another phyloseq object with rarefied data as OTU table
+    Rarefied_physeq_median = phyloseq(df_rare_median, TAX, samples)
+
+    otu_data = round(otu_table(Rarefied_physeq_mean))
+    # In case where we have float number in mean (for richness), we round the number to have an integer
+    Rarefied_physeq_mean_rounded = phyloseq(otu_data, TAX, samples)
+
+    cat("Saving the object to RDS format...\n")
+    saveRDS(Rarefied_physeq_mean_rounded, file = paste0("output/Rarefied_physeq_mean_rounded_", type, ".rds"))
+    saveRDS(Rarefied_physeq_median, file = paste0("output/Rarefied_physeq_median_", type ,".rds"))
+    saveRDS(df_rare_mean, file = paste0("output/df_rare_mean_", type ,".rds"))
+}
+cat("Starting the rarefaction process for the rhizoplane samples\n")
+rarefaction(physeq_rhizosplane_ctrl, "rhizoplane", size = 40000)
+cat("Starting the rarefaction process for the rhizosphere samples\n")
+rarefaction(physeq_rhizosphere_ctrl, "rhizosphere", size = 40000)
+min(colSums(physeq_rhizosplane_ctrl@otu_table))
+```
+
+```{r loading the rarefied phyloseq objects, include=FALSE}
+Rarefied_physeq_mean_rounded_rhizoplane = readRDS("output/Rarefied_physeq_mean_rounded_rhizoplane.rds")
+Rarefied_physeq_median_rhizoplane = readRDS("output/Rarefied_physeq_median_rhizoplane.rds")
+df_rare_mean_rhizoplane = readRDS("output/df_rare_mean_rhizoplane.rds")
+
+Rarefied_physeq_mean_rounded_rhizosphere = readRDS("output/Rarefied_physeq_mean_rounded_rhizosphere.rds")
+Rarefied_physeq_median_rhizosphere = readRDS("output/Rarefied_physeq_median_rhizosphere.rds")
+df_rare_mean_rhizosphere = readRDS("output/df_rare_mean_rhizosphere.rds")
+```
+
+### Descriptive statistics
+
+```{r descriptive_statistics, include=TRUE}
+reads_data = read.csv("ressources/track.txt", sep = "\t")
+number_ASV = colSums(df_feature)
+reads_data$ASV = number_ASV
+reads_data$Treatment = df_meta$Treatment # add metadata to the reads data
+reads_data$Compartments = df_meta$Compartments
+table = reads_data %>% 
+    filter(Treatment == "Control") %>% # remove this line to get data for all the samples
+    group_by(Compartments) %>% 
+    summarise(mean_reads = mean(nonchim), median_reads = median(nonchim), reads_number = sum(nonchim),
+                                min_reads = min(nonchim), max_reads = max(nonchim), Cluster_sum = sum(ASV), samples = n())
+table = as.data.frame(table)
+
+table %>% # display the table with a good looking format
+  kable("html", caption = "Descriptive Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "responsive"), full_width = F)
+
+```
+
+
+

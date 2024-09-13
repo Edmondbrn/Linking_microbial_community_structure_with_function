@@ -1,0 +1,226 @@
+---
+title: "Quality_graph"
+author: "Edmond Berne"
+date: "2024-05-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Quality graph sequencing
+
+```{r}
+# .libPaths("/home/edmond/R/x86_64-pc-linux-gnu-library/4.3")
+library(dada2); packageVersion("dada2")
+library(ggplot2)
+library(phyloseq); packageVersion("phyloseq")
+library(Biostrings); packageVersion("Biostrings")
+```
+
+```{r}
+
+# Obtenir la version des paquets chargés
+version_dada2 <- packageVersion("dada2")
+version_ggplot2 <- packageVersion("ggplot2")
+version_phyloseq <- packageVersion("phyloseq")
+version_Biostrings <- packageVersion("Biostrings")
+
+# Afficher les versions
+print(paste("dada2 version:", version_dada2))
+print(paste("ggplot2 version:", version_ggplot2))
+print(paste("phyloseq version:", version_phyloseq))
+print(paste("Biostrings version:", version_Biostrings))
+
+```
+
+```{r}
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # set the working directory to the location of this script
+```
+
+
+**Selection of forward and reverse reads**
+```{r}
+path = paste0(getwd(), "/data") # CHANGE ME to the directory containing the fastq files after unzipping.
+list.files(path)
+fnFs <- sort(list.files(path, pattern="_R1_001.fastq.gz", full.names = TRUE))
+fnFsR = sort(list.files(path, pattern="_R2_001.fastq.gz", full.names = TRUE))
+# Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
+sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+```
+
+```{r}
+plotQualityProfile(fnFs[1:9])
+```
+
+```{r}
+plotQualityProfile(fnFsR[1:9])
+```
+
+### Truncation
+
+```{r}
+# Place filtered files in filtered/ subdirectory
+filtFs25 <- file.path(path, "filtered_77", paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs25 <- file.path(path, "filtered_77", paste0(sample.names, "_R_filt.fastq.gz"))
+names(filtFs25) <- sample.names
+names(filtRs25) <- sample.names
+
+out <- filterAndTrim(fnFs, filtFs25, fnFsR, filtRs25, truncLen=c(250, 180),
+              maxN=0, maxEE=c(7,7), truncQ=2, rm.phix=TRUE, trimLeft = c(23, 19), # remove primer with trimleft
+                compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
+head(out)
+```
+```{r}
+path2 = paste0(getwd(), "/data/filtered_77") # CHANGE ME to the directory containing the fastq files after unzipping.
+list.files(path2)
+fnFsT <- sort(list.files(path2, pattern="_F_filt.fastq", full.names = TRUE))
+fnFsRT = sort(list.files(path2, pattern="_R_filt.fastq", full.names = TRUE))
+
+plotQualityProfile(fnFsRT[1:9])
+```
+
+```{r}
+plotQualityProfile(fnFsT[1:9])
+```
+### Error rate
+```{r}
+errF <- learnErrors(filtFs25, multithread=TRUE)
+saveRDS(errF, "errF.rds")
+errF = readRDS("output/errF.rds")
+
+```
+```{r}
+errR <- learnErrors(filtRs25, multithread=TRUE)
+saveRDS(errR, "errR.rds")
+errR = readRDS("output/errR.rds")
+
+```
+
+``` {r}
+plotErrors(errF, nominalQ=TRUE)
+```
+
+``` {r}
+plotErrors(errR, nominalQ=TRUE)
+```
+
+
+### Sample Inference
+
+```{r}
+dadaFs <- dada(filtFs25, err=errF, multithread=TRUE)
+saveRDS(dadaFs, "output/dadaFs.rds")
+```
+
+```{r}
+dadaRs <- dada(filtRs25, err=errR, multithread=TRUE)
+```
+
+```{r}
+dadaFs[[1]]
+```
+
+### Merge paired reads
+```{r}
+mergers <- mergePairs(dadaFs, filtFs25, dadaRs, filtRs25, verbose=TRUE, justConcatenate = TRUE)
+# Inspect the merger data.frame from the first sample
+head(mergers[[1]])
+```
+
+### Sequence Table (ASV)
+```{r}
+seqtab <- makeSequenceTable(mergers)
+dim(seqtab)
+# Inspect distribution of sequence lengths
+table(nchar(getSequences(seqtab)))
+write.table(seqtab, "merged_reads.txt", sep = "\t")
+```
+
+```{r}
+seqtabF <- makeSequenceTable(dadaFs)
+dim(seqtabF)
+# Inspect distribution of sequence lengths
+table(nchar(getSequences(seqtabF)))
+write.table(seqtabF, "forward_reads.txt", sep = "\t")
+```
+### Remove chimeras
+```{r}
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+dim(seqtab.nochim)
+sum(seqtab.nochim)/sum(seqtab)
+
+seqtab.nochimF <- removeBimeraDenovo(seqtabF, method="consensus", multithread=TRUE, verbose=TRUE)
+dim(seqtab.nochimF)
+sum(seqtab.nochimF)/sum(seqtabF)
+```
+
+```{r}
+print(seqtab.nochim)
+print(seqtab.nochimF)
+
+```
+
+```{r}
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+# If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
+colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+rownames(track) <- sample.names
+head(track)
+```
+
+
+
+```{r}
+getN <- function(x) sum(getUniques(x))
+track_forward <- cbind(out, sapply(dadaFs, getN), rowSums(seqtab.nochimF))
+# If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
+colnames(track_forward) <- c("input", "filtered", "denoisedF", "nonchim")
+rownames(track_forward) <- sample.names
+head(track_forward)
+```
+
+```{r}
+print(track) # display everything for data analysis later
+write.table(track, "output/track.txt", sep = "\t", row.names = FALSE, quote = FALSE)
+```
+
+
+```{r}
+print(track_forward) # display everything for data analysis later
+write.table(track_forward, "output/track_forward.txt", sep = "\t", row.names = FALSE, quote = FALSE)
+```
+
+
+```{r}
+#Extract nucleotide sequences from seqtab_nochim data
+nucleotide_sequences <- DNAStringSet(colnames(seqtab.nochim))
+names(nucleotide_sequences) <- paste0("sequence_", seq_along(nucleotide_sequences))
+
+output_file_path <- paste0(getwd(), "/output/nucleotide_sequence_merged.fasta")
+
+# FASTA
+writeXStringSet(nucleotide_sequences, filepath = output_file_path, format = "fasta")
+
+#Extract nucleotide sequences from seqtab_nochim data
+nucleotide_sequences <- DNAStringSet(colnames(seqtabF))
+names(nucleotide_sequences) <- paste0("sequence_", seq_along(nucleotide_sequences))
+
+output_file_path <- paste0(getwd(), "/output/nucleotide_sequence_forward.fasta")
+
+# FASTA
+writeXStringSet(nucleotide_sequences, filepath = output_file_path, format = "fasta")
+
+```
+
+# feature-table
+```{r}
+colnames(seqtab.nochim) <- paste0("sequence_", seq_along(colnames(seqtab.nochim)))
+write.table(seqtab.nochim, file = "output/feature-table_merged.tsv", sep = "\t", quote = FALSE, row.names = TRUE)
+
+colnames(seqtabF) <- paste0("sequence_", seq_along(colnames(seqtabF)))
+write.table(seqtabF, file = "output/feature-table_forward.tsv", sep = "\t", quote = FALSE, row.names = TRUE)
+```
+
