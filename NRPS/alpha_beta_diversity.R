@@ -74,6 +74,7 @@ p3 = alpha_box_plot(data = alpha_div_5week, x_var = "Irrigation",
                     comparizon = comparison , 
                     nb_test = nb_test, 
                     name = "control")
+                    
 x11(height = 10, width = 10)
 (pfinal = ggarrange(p2, p3, ncol = 1, nrow = 2, 
                    labels = c("Week 4", "Week 5"), label.x = -0.03, label.y = 1.05,

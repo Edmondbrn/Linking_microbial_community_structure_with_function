@@ -92,6 +92,7 @@ All_data$Group[All_data$Group %in% "irrigated"]<-"Control"
 colnames(All_data)[2]<-"Irrigation"
 
 All_data$Week<-stringr::str_replace(All_data$Week,"Week", "Week ")
+saveRDS(All_data, "ressources/RDS/Plant_data.rds")
 
 #Plot shoot length
 shoot_le<-ggplot(All_data, aes(x = Week, y = Shootlength)) + 
