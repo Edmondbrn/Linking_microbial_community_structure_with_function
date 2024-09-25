@@ -4,6 +4,8 @@ library(phyloseq)
 library(ggpubr)
 library(dplyr)
 library(ggsignif)
+library(vegan)
+library(readxl)
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # working on Rstudio only
 getwd()
@@ -27,6 +29,7 @@ alpha_all<-rbind(alpha_div_2week,alpha_div_4week,alpha_div_5week)
 alpha_all$Irrigation[alpha_all$Irrigation %in% "Watered"]<-"Control"
 
 symnum.args2 <- list(cutpoints = c(0,  0.001, 0.01, 0.05, Inf), symbols = c( "***", "**", "*", "ns"))
+star_size = 8 # change for the size of the stars after test
 
 
 shannon_plot<-ggplot(alpha_all, aes(x = Week, y = Shannon)) + 
@@ -42,7 +45,7 @@ shannon_plot<-ggplot(alpha_all, aes(x = Week, y = Shannon)) +
         legend.title = element_text(size = 12,face = "bold"),
         panel.grid = element_blank()
   ) + stat_compare_means(aes(group = Irrigation), label = "p.signif",
-                         method = "t.test", symnum.args = symnum.args2 , label.y =5.8)+
+                         method = "t.test", symnum.args = symnum.args2 , label.y =5.8, size = star_size)+
   scale_y_continuous(limits = c(4.15,6.15),expand = c(0,0))
 
 
@@ -62,7 +65,7 @@ plot_pcoa = function(data, color, cluster, Shape, filename){
   
 
   
-  ggsave(filename)
+  # ggsave(filename)
   list_output[[1]] = p3
   list_output[[2]] = physeq.ord_pcoa
   return(list_output)
@@ -70,7 +73,6 @@ plot_pcoa = function(data, color, cluster, Shape, filename){
 
 sample_data(physeq_rare_mean_rounded)$Irrigation[sample_data(physeq_rare_mean_rounded)$Irrigation %in% "Watered"]<-"Control"
 p4 = plot_pcoa(physeq_rare_mean_rounded, "Irrigation", "Group", "Week", "output/PCoA_16S_rRNA_cluster.png")
-p4[[1]]
 
 pcoa_16S<-p4[[1]]
 
@@ -89,7 +91,7 @@ All_data<-rbind(week2,week4,week5)  %>% select(-Treatment)
 All_data$Group[All_data$Group %in% "irrigated"]<-"Control"
 colnames(All_data)[2]<-"Irrigation"
 
-All_data$Week<-str_replace(All_data$Week,"Week", "Week ")
+All_data$Week<-stringr::str_replace(All_data$Week,"Week", "Week ")
 
 #Plot shoot length
 shoot_le<-ggplot(All_data, aes(x = Week, y = Shootlength)) + 
@@ -104,7 +106,7 @@ shoot_le<-ggplot(All_data, aes(x = Week, y = Shootlength)) +
         legend.text = element_text(size = 10), 
         legend.title = element_text(size = 12,face = "bold"),
         panel.grid = element_blank()
-  ) + stat_compare_means(aes(group = Irrigation), label = "p.signif",method = "t.test", symnum.args = symnum.args2 , label.y = 39)+
+  ) + stat_compare_means(aes(group = Irrigation), label = "p.signif",method = "t.test", symnum.args = symnum.args2 , label.y = 39, size = star_size)+
   scale_y_continuous(limits = c(24,40))
 
 
@@ -121,7 +123,7 @@ shoot_fresh<-ggplot(All_data, aes(x = Week, y = Shootfreshweight)) +
         legend.text = element_text(size = 10), 
         legend.title = element_text(size = 12,face = "bold"),
         panel.grid = element_blank()
-  )+ stat_compare_means(aes(group = Irrigation), label = "p.signif",method = "t.test", symnum.args = symnum.args2 , label.y = 9.2)+
+  )+ stat_compare_means(aes(group = Irrigation), label = "p.signif",method = "t.test", symnum.args = symnum.args2 , label.y = 9.2, size = star_size)+
   scale_y_continuous(limits = c(0,10.22), expand =c(0,0))
 
 #Plot the root dry weight
@@ -137,18 +139,18 @@ root_dry<-ggplot(All_data, aes(x = Week, y = Rootdryweight)) +
         legend.text = element_text(size = 10), 
         legend.title = element_text(size = 12,face = "bold"),
         panel.grid = element_blank()
-  )+ stat_compare_means(aes(group = Irrigation), label = "p.signif",method = "t.test", symnum.args = symnum.args2 ,label.y = 1.8)+
+  )+ stat_compare_means(aes(group = Irrigation), label = "p.signif",method = "t.test", symnum.args = symnum.args2 ,label.y = 1.8, size = star_size)+
   scale_y_continuous(limits = c(0,2), expand =c(0,0))
 
 #Extract the legend
-sha_legend<-get_legend(plot_of_pcoa)
+sha_legend<-get_legend(pcoa_16S)
 leg_for_plot<-ggarrange(sha_legend)
 
 #Plot and save
 x11(height = 6, width = 7)
-ggarrange(shoot_le, shoot_fresh,root_dry,plot_of_pcoa,plot_of_shan,  leg_for_plot, ncol = 3,nrow = 2,
+ggarrange(shoot_le, shoot_fresh,root_dry,pcoa_16S,shannon_plot,  leg_for_plot, ncol = 3,nrow = 2,
           legend = "none", align = "h", labels = c("A","B","C","D","E"))
-ggsave("Fig1_Plant_data.png", dpi = 300)
+ggsave("Fig1_Plant_data.png", dpi = 400, width = 10, height = 7)
 dev.off()
 
 
