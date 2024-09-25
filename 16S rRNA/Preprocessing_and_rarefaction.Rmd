@@ -53,13 +53,14 @@ samples = sample_data(df_meta)
 physeq = phyloseq(OTU, TAX, samples)
 physeq = subset_taxa(physeq, Kingdom == "Bacteria") # remove non-bacterial sequences
 physeq = subset_taxa(physeq, Family != "mitochondria") # remove mitochondria sequences
-physeq = subset_taxa(physeq, Family != "chloroplast" ) # remove chloroplaste sequences
+physeq = subset_taxa(physeq, Class != "Chloroplast" ) # remove chloroplast sequences
 
 # the line to filter the data to keep only the control samples
 physeq = subset_samples(physeq, Treatment == "Water")
 physeq@sam_data$Week = as.factor(physeq@sam_data$Week)
 ampvis_data = amp_load(physeq)
-saveRDS(physeq, file = "output/physeq_ctrl.rds")
+physeq_f<-prune_taxa(taxa_sums(physeq)>0,physeq)
+saveRDS(physeq_f, file = "output/physeq_ctrl.rds")
 ```
 
 
@@ -152,7 +153,7 @@ saveRDS(df_rare_mean, file = "ressources/RDS/df_rare_mean.rds")
 ### Descriptive statistics 
     *(based on nonchim reads)*
 ```{r descriptive statistics, include = TRUE}
-reads_data = read.csv("ressources/track.txt", sep = "\t")
+reads_data = read.csv("ressources/data/track.txt", sep = "\t")
 number_ASV = colSums(df_feature)
 reads_data = cbind(reads_data, df_meta) # add metadata to the reads data
 reads_data$ASV = number_ASV
@@ -167,120 +168,5 @@ table %>%
   kable("html", caption = "Descriptive Statistics") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F)
 ```
-
-
-### Loading data
-```{r load rarefied data, include = TRUE}
-physeq_rare_mean = readRDS("output/df_rare_mean.rds")
-physeq_rare_median = readRDS("output/Rarefied_physeq_median.rds")
-physeq_rare_mean_rounded = readRDS("output/Rarefied_physeq_mean_rounded.rds")
-```
-
-
-### Alpha diversity
-
-```{r alpha diversity function, include = FALSE}
-
-alpha_box_plot = function(data, x_var,y_var, col, comparizon, nb_test, name){
-  
-  symnum = list(cutpoints = c(0, 0.0001/nb_test, 0.001/nb_test, 0.01/nb_test, 0.05/nb_test, Inf), symbols = c("****", "***", "**", "*", "ns"))
-  p = ggplot(data = data, aes_string(x = x_var, y = y_var, color = col))+
-    geom_boxplot() +
-    facet_grid(~ Week, scales = "free") + # organise the plot by week
-    theme(axis.text.x = element_text(hjust = 1, size = 20, angle = 45),  
-          axis.text.y = element_text(size = 20),  
-          legend.title = element_text(size = 20),
-          legend.text = element_text(size = 18),
-          plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
-          axis.title.x = element_text(size = 24),  
-          axis.title.y = element_text(size = 24),
-          strip.text = element_text(size = 15)) +  
-    ylim(c(min(data[[y_var]]) - 0.1 * min(data[[y_var]]) , max(data[[y_var]]) + 0.1 *max(data[[y_var]]))) +
-    labs(x = "Sub sample", y = paste0(y_var, " diversity"))+
-    stat_compare_means(comparisons = comparizon, symnum.args = symnum, label = "p.signif", size = 10 )
-   ggsave(paste0("output/alpha_diversity_",name ,"_", y_var, ".png"), plot = p, width = 25, height = 15, units = "cm")
-   return(p)
-}
-
-```
-
-```{r alpha diversity_loading data, include = FALSE}
-alpha_div = estimate_richness(physeq_rare_mean_rounded, measures = c("Shannon", "Chao1")) # compute alpha diversity
-alpha_div = cbind(alpha_div, physeq_rare_mean_rounded@sam_data) # add the factor to the new table
-alpha_div$Week = ifelse(alpha_div$Week == 2, "2weeks",
-                        ifelse(alpha_div$Week == 4, "4weeks", "5weeks"
-                        ))
-comparison = list(c("Watered", "Drought")) # change this according to the variable you want to compare
-nb_test = 2 # for Bonferonni correction
-```
-
-```{r alpha diversity_loading plots, include = FALSE}
-p2 = alpha_box_plot(data = alpha_div, x_var = "Irrigation", y_var = "Shannon", col = "Irrigation", comparizon = comparison , nb_test = nb_test, name = "control")
-p3 = alpha_box_plot(data = alpha_div, x_var = "Irrigation", y_var = "Chao1", col = "Irrigation", comparizon = comparison , nb_test = nb_test, name = "control")
-```
-
-#### Shannon diversity
-```{r alpha diversity_loading shannon, include = TRUE, fig.width=10, fig.height=8}
-p2
-```
-
-#### Richness
-```{r alpha diversity_loading richness, include = TRUE, fig.width=10, fig.height=8}
-p3
-```
-
-
-
-### Beta diversity
-```{r beta diversity Function, include = FALSE, fig.width=10, fig.height=8}
-plot_pcoa = function(data, color, cluster, filename){
-    list_output = list() # to return the plot and the beta diversity results
-    print("Computing PCoA")
-    physeq.ord_pcoa = ordinate(data, "PCoA", "bray")
-    print("Plotting PCoA")
-    p3 = plot_ordination(data, physeq.ord_pcoa, color=color,  
-                  title="Beta diversity study using PCoA method (Bray-Curtis dissimilarity)") +
-           geom_point(size = 3)+
-          theme(axis.text = element_text(size = 15), axis.title = element_text(size = 25), 
-                legend.text = element_text(size = 25), legend.title = element_text(size = 27))
-
-    # add the elipse on the plot
-    p3 = p3 + stat_ellipse(aes_(color = as.name(cluster), fill = as.name(cluster)), geom = "polygon", show.legend = T, linetype = "dashed", linewidth = 1, alpha = 0.1)+ 
-     labs(color = "Groups", fill = "Groups")+
-          scale_color_manual(values = c("Week 2 control" = "#F8766D", # change the color of the groups points
-                                        "Week 4 drought" = "#B79F00", 
-                                        "Week 4 control" = "#00BA38", 
-                                        "Week 5 control" = "#F564E3", 
-                                        "Week 5 drought" = "#619CFF")) +
-          scale_fill_manual(values = c("Week 2 control" = "#F8766D", # change the color of the groups ellipse
-                                       "Week 4 drought" = "#B79F00", 
-                                       "Week 4 control" = "#00BA38", 
-                                       "Week 5 control" = "#F564E3", 
-                                       "Week 5 drought" = "#619CFF")) 
-   
-    ggsave(filename)
-    list_output[[1]] = p3
-    list_output[[2]] = physeq.ord_pcoa
-    return(list_output)
-}
-
-```
-
-```{r beta diversity PCoA plot, include = TRUE, fig.width=10, fig.height=8}
-
-physeq_rare_mean_rounded@sam_data$Group = ifelse(physeq_rare_mean_rounded@sam_data$Group == "2Watered" , "Week 2 control",
-                                                                 ifelse(physeq_rare_mean_rounded@sam_data$Group == "4Drought", "Week 4 drought", 
-                                                                 ifelse(physeq_rare_mean_rounded@sam_data$Group == "4Watered", "Week 4 control",
-                                                                 ifelse(physeq_rare_mean_rounded@sam_data$Group == "5Watered", "Week 5 control","Week 5 drought"))))
-
-p4 = plot_pcoa(physeq_rare_mean_rounded, "Group", "Group", "output/PCoA_16S_rRNA_cluster.png")
-saveRDS(p4[[2]], file = "output/physeq_ord_pcoa.rds")
-```
-
-```{r, include = TRUE}
-p4[[1]]
-```
-
-
 
 

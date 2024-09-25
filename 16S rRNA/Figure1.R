@@ -76,9 +76,9 @@ pcoa_16S<-p4[[1]]
 
 
 ### Plant data
-week2d<-read_excel("2 weeks.xlsx", sheet = "Sheet1")
-week4d<-read_excel("4 weeks.xlsx", sheet = "Sheet1")
-week5d<-read_excel("6 weeks.xlsx", sheet = "Sheet1") # It was from week 5 not 6.
+week2d<-read_excel("ressources/2 weeks.xlsx", sheet = "Sheet1")
+week4d<-read_excel("ressources/4 weeks.xlsx", sheet = "Sheet1")
+week5d<-read_excel("ressources/5 weeks.xlsx", sheet = "Sheet1") 
 
 week2<-week2d %>% select(-Shootdryweight) %>% mutate(Week="Week2")%>% filter(Treatment %in% "Water")
 week4<-week4d %>% select(-Treatment1) %>% mutate(Week="Week4")%>% filter(Treatment %in% "Water")
