@@ -36,6 +36,7 @@ df_feature = read.csv("ressources/data/otu_table_merged_transpose.csv")
 df_tax = read.csv("ressources/data/tax_table_merged.csv", sep = ";")
 df_meta = read.csv("ressources/data/metadata1.csv")
 
+
 df_feature = df_feature %>%
   tibble::column_to_rownames("ASV") # format the table for phyloseq
 
@@ -52,7 +53,7 @@ TAX = tax_table(tax_mat)
 samples = sample_data(df_meta)
 physeq = phyloseq(OTU, TAX, samples)
 physeq = subset_taxa(physeq, Kingdom == "Bacteria") # remove non-bacterial sequences
-physeq = subset_taxa(physeq, Family != "mitochondria") # remove mitochondria sequences
+physeq = subset_taxa(physeq, Family != "Mitochondria" | Family == NA) # remove mitochondria sequences
 physeq = subset_taxa(physeq, Class != "Chloroplast" ) # remove chloroplast sequences
 
 # the line to filter the data to keep only the control samples
