@@ -20,6 +20,7 @@ library(stringr)
 # ==========================================================================================================
 try(setwd(dirname(rstudioapi::getActiveDocumentContext()$path))) # only works on RStudio
 physeq = readRDS("ressources/RDS/raw_physeq_rhizoplane.rds")
+View(physeq@sam_data)
 
 physeq = subset_samples(physeq, Treatment == "Control") # remove control samples
 physeq4week = subset_samples(physeq, WEEK == "week 4") # subset the data to only include 4-week samples
@@ -90,7 +91,7 @@ plot_res_mibig = function(model, select_level, title, size){
         # plot according to the treatment
         plot1 = plot_point_mibig(DF1, size)
         plot2 = plot_point_mibig(DF2, size)
-        plot_merge = ggpubr::ggarrange(plot1, plot2, ncol = 2, common.legend = TRUE, legend = "right", widths = c(0.4, 0.4))
+        plot_merge = ggpubr::ggarrange(plot2, plot1, ncol = 2, common.legend = TRUE, legend = "right", widths = c(0.4, 0.4))
         print(plot_merge)
         ggsave(paste0("output/", title, ".png"), plot = plot_merge)
     }
@@ -169,7 +170,7 @@ ampvis_mibig = amp_load(physeq_mibig)
 saveRDS(ampvis_mibig, "ressources/RDS/ampvis2_rhizoplanes_week4_irrigation_mibig.rds")
 
 
-DF_mibig = plot_res_mibig(model, "Rhizoplane week 4 irrigation", 9) 
+DF_mibig = plot_res_mibig(model, "genus","Rhizoplane week 4 irrigation", 9) 
 tax_table_df = as.data.frame(model$data@tax_table)
 products_double = tax_table_df %>% count(Product_clean) %>% filter(n > 1, Product_clean != "NaN") # get the compound with at least two occurences
 product_twice = tolower(products_double$Product_clean) # for the selection
@@ -181,6 +182,7 @@ keep_index = c()
 compound = c()
 for(i in 1:loop){
     trim_product <- trimws(strsplit(DF_mibig$taxa[i], "\\(")[[1]][1])
+    print(trim_product)
     compound = c(compound, trim_product)
     if (trim_product %in% product_twice){
         keep_index = c(keep_index, i) # index with a double compounds
