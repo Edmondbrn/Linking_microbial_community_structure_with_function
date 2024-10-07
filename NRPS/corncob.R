@@ -190,7 +190,9 @@ for(i in 1:loop){
 }
 
 DF_mibig$simple_product = compound
-DF_mibig2 = DF_mibig[keep_index,] # remove unique compounds
+
+#DF_mibig2 is empty
+DF_mibig2 = DF_mibig2[keep_index,] # remove unique compounds
 
 
 DF_mibig3<-DF_mibig2  # change the ordrer frol taxa to x
