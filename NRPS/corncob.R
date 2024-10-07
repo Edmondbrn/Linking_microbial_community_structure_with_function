@@ -19,7 +19,8 @@ library(stringr)
 
 # ==========================================================================================================
 try(setwd(dirname(rstudioapi::getActiveDocumentContext()$path))) # only works on RStudio
-physeq = readRDS("ressources/RDS/physeq_rhizoplane.rds")
+physeq = readRDS("ressources/RDS/raw_physeq_rhizoplane.rds")
+View(physeq@sam_data)
 
 physeq = subset_samples(physeq, Treatment == "Control") # remove control samples
 physeq4week = subset_samples(physeq, WEEK == "week 4") # subset the data to only include 4-week samples
@@ -46,7 +47,12 @@ binom = function(data, variable){
 
 plot_point_mibig = function(data, size, title){ # function to plot the graph
     data$taxa = gsub("amplicon_cluster", "AC", data$taxa)
-    data$taxa = factor(data$taxa, levels = rev(unique(sort(data$taxa)))) # sort the taxa for the plot
+    data$taxa = factor(data$taxa, levels = unique(data$taxa)) # sort the taxa for the plot    
+    negative_x_index = which(data$x < 0)
+    if (length(negative_x_index) > 0)
+        y_position = data$taxa[max(negative_x_index)]
+    else
+        y_position = NA
     plot = ggplot(data, aes(x = x, y = taxa)) +
                 geom_errorbar(aes(xmin = xmin, xmax = xmax), width = 0.2, color = "red") + 
                 geom_point(color = "black") + 
@@ -57,14 +63,17 @@ plot_point_mibig = function(data, size, title){ # function to plot the graph
                 theme(axis.text.y = element_text(angle = 0, hjust = 1, size = size, family = "serif"))+
                 theme(axis.text.x = element_text(angle = 0, hjust = 1, size = size), strip.text = element_text(size = size+2, family = "serif"),
                       plot.margin = unit(c(0.5,0.5,0.5,1.5), "cm"))
+    if (!is.na(y_position)) {
+        plot = plot + geom_hline(yintercept = as.numeric(y_position) +0.5, color = "black")
+    }
     return(plot)
 }
 
 
-plot_res_mibig = function(model, title, size){
+plot_res_mibig = function(model, select_level, title, size){
     if (length(model$significant_taxa) ==  0)
         return("Error, no significant taxa found")
-    df = plot(model, total = T, B = 1000, level = c("Product_clean"), dataonly = T)
+    df = plot(model, total = T, B = 1000, level = select_level, dataonly = T)
     DF = df$data
     DF$title = title
     DF$taxa = tolower(DF$taxa)
@@ -75,14 +84,14 @@ plot_res_mibig = function(model, title, size){
         }
     } 
     if (dim(DF)[1]>80){
-        DF = DF %>% arrange(taxa) # sort the table before the slicing
+        DF = DF %>% arrange(desc(x)) # sort the table before the slicing
         DF1 = DF[1:dim(DF)[1] / 2 +1,]
         DF2 = DF[(dim(DF)[1]  / 2 ):dim(DF)[1],]
         # Divide the datframe into two
         # plot according to the treatment
         plot1 = plot_point_mibig(DF1, size)
         plot2 = plot_point_mibig(DF2, size)
-        plot_merge = ggpubr::ggarrange(plot1, plot2, ncol = 2, common.legend = TRUE, legend = "right", widths = c(0.4, 0.4))
+        plot_merge = ggpubr::ggarrange(plot2, plot1, ncol = 2, common.legend = TRUE, legend = "right", widths = c(0.4, 0.4))
         print(plot_merge)
         ggsave(paste0("output/", title, ".png"), plot = plot_merge)
     }
@@ -139,6 +148,9 @@ extract_cluster = function(model){
 model = readRDS("ressources/RDS/corncob_rhizoplane_week4_irrigation.rds")
 df_blast_mibig = read.csv("ressources/data/full_cluster_mibig_blast.txt", sep = "\t", row.names = 1)
 
+# plot the raw results from Dom2BGC
+plot_res_mibig(model, "genus" ,"Rhizoplane week 4 irrigation", 9) # plot the results
+
 good_tax = model$significant_taxa # extract the significant taxa (amplicon_cluster)
 model$data@tax_table = model$data@tax_table[rownames(model$data@tax_table) %in% good_tax,] # filtering
 model$data@otu_table = model$data@otu_table[rownames(model$data@tax_table),]
@@ -158,7 +170,7 @@ ampvis_mibig = amp_load(physeq_mibig)
 saveRDS(ampvis_mibig, "ressources/RDS/ampvis2_rhizoplanes_week4_irrigation_mibig.rds")
 
 
-DF_mibig = plot_res_mibig(model, "Rhizoplane week 4 irrigation", 9) 
+DF_mibig = plot_res_mibig(model, "genus","Rhizoplane week 4 irrigation", 9) 
 tax_table_df = as.data.frame(model$data@tax_table)
 products_double = tax_table_df %>% count(Product_clean) %>% filter(n > 1, Product_clean != "NaN") # get the compound with at least two occurences
 product_twice = tolower(products_double$Product_clean) # for the selection
@@ -170,6 +182,7 @@ keep_index = c()
 compound = c()
 for(i in 1:loop){
     trim_product <- trimws(strsplit(DF_mibig$taxa[i], "\\(")[[1]][1])
+    print(trim_product)
     compound = c(compound, trim_product)
     if (trim_product %in% product_twice){
         keep_index = c(keep_index, i) # index with a double compounds

@@ -23,7 +23,6 @@ library(ggpubr)
 library(VennDiagram)
 library(plotly)
 library(ggbeeswarm)
-library(vegan)
 # format the html output
 library(kableExtra)
 ```
@@ -33,7 +32,7 @@ library(kableExtra)
 
 df_feature = read.csv("ressources/data/grouped-feature-table.tsv", sep = "\t")
 df_tax = read.csv("ressources/data/amplicon_annotation.csv", sep = "\t")
-df_meta = read_excel("ressources/data/Metadata.xlsx")
+df_meta = read.csv("ressources/data/Metadata.csv")
 
 
 df_feature = df_feature %>%
@@ -189,8 +188,9 @@ df_rare_mean_rhizosphere = readRDS("output/df_rare_mean_rhizosphere.rds")
 ### Descriptive statistics
 
 ```{r descriptive_statistics, include=TRUE}
-reads_data = read.csv("ressources/track.txt", sep = "\t")
-number_ASV = colSums(df_feature)
+# setwd("/home/edmond/Edmond_Frederik_amplicon_study_NRPS/NRPS")
+reads_data = read.csv("ressources/data/track_V2.txt", sep = "\t")
+number_ASV = colSums(df_feature[,-1])
 reads_data$ASV = number_ASV
 reads_data$Treatment = df_meta$Treatment # add metadata to the reads data
 reads_data$Compartments = df_meta$Compartments
