@@ -24,7 +24,7 @@ try(setwd(dirname(rstudioapi::getActiveDocumentContext()$path))) # only works on
 physeq = readRDS("ressources/RDS/physeq_ctrl.rds")
 
 physeq4week = subset_samples(physeq, Week == "4") # subset the data to only include 4-week samples
-physeq4week_genus_glom = tax_glom(physeq4week, "Family") # glom the data by genus
+physeq4week_genus_glom = tax_glom(physeq4week, "Family") # agglommerate the data by genus
 
 
 physeq_4_5week = subset_samples(physeq, Week %in% c("4", "5")) # subset the data to only include 4-week and 5-week samples
@@ -142,9 +142,9 @@ model4week_glom = readRDS('ressources/RDS/model_4week_irrigation_glom.rds')
 model4_5_water = readRDS('ressources/RDS/model_4_5week_watered.rds')
 model4_5_water_glom = readRDS('ressources/RDS/model_4_5week_watered_glom.rds')
 
-plot1 = plot_res_16S(model4week, "Family", "16S_4week", 12)
+plot1 = plot_res_16S(model4week, c("Order","Family","Genus"), "16S_4week", 12)
 # plot_res_16S(model4week, c("Family", "Genus"), "16S_4week", 10) for the two levels Family and Genus
-plot2 = plot_res_16S(model4week_glom, "Family","16S_4week_glom", 12)
+plot2 = plot_res_16S(model4week_glom, c("Family","Genus"), "16S_4week_glom", 12)
 
 plot3 = plot_res_16S(model4_5_water, "Family", "16S_4_5week_watered", 12) # Week 5 effect
 plot4 = plot_res_16S(model4_5_water_glom, "Family", "16S_4_5week_watered_glom", 12, FALSE) # week 5 effect
