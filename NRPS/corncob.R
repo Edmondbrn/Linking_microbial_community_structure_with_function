@@ -170,7 +170,7 @@ ampvis_mibig = amp_load(physeq_mibig)
 saveRDS(ampvis_mibig, "ressources/RDS/ampvis2_rhizoplanes_week4_irrigation_mibig.rds")
 
 
-DF_mibig = plot_res_mibig(model, "genus","Rhizoplane week 4 irrigation", 9) 
+DF_mibig = plot_res_mibig(model, "Product_clean","Rhizoplane week 4 irrigation", 9) 
 tax_table_df = as.data.frame(model$data@tax_table)
 products_double = tax_table_df %>% count(Product_clean) %>% filter(n > 1, Product_clean != "NaN") # get the compound with at least two occurences
 product_twice = tolower(products_double$Product_clean) # for the selection
@@ -227,7 +227,8 @@ diff_plot<-DF_mibig3  %>% ggplot(aes(x = x, y = taxa_clean)) + geom_point(color 
         legend.position = "bottom",
         legend.text = element_text(size = 15),
         legend.title = element_text(size = 18))+
-    scale_color_manual(values = distinct_colors)
+    scale_color_manual(values = distinct_colors) +
+    guides(color = guide_legend(nrow = 4)) # 3 row for the legend
 
 
 
@@ -288,7 +289,7 @@ heat_forcom<-amp_mibig_un%>% amp_heatmap(
   tax_show = 25,
   round = 3,
   color_vector = c("lightblue", "white", "red")) +
-  theme(strip.background = element_rect(fill = "darkgray"),
+  theme(strip.background = element_rect(fill = "lightgray"),
         strip.text = element_text(color = "black", size = 17),
         axis.text = element_text(family = "serif"),
         axis.text.x = element_blank(),
@@ -300,16 +301,20 @@ heat_forcom<-amp_mibig_un%>% amp_heatmap(
         plot.margin = margin(1, 1, 1, 1, "cm")) + # adjust the margin to reduce the heatmap
   scale_x_discrete(expand = c(0.01, 0.01))
 
+    scale_fill_manual(values=c("#018571","#a6611a"))+
+    
 
+diff_plot <- diff_plot + theme(plot.margin = margin(0, 0, 0, 0, "cm"))
+heat_forcom <- heat_forcom | theme(plot.margin = margin(0, 0, 0, 0, "cm"))
 
+# Combiner les graphiques avec patchwork
+combined_plot <- diff_plot + heat_forcom + plot_layout(ncol = 2, widths = c(1, 1))
+
+# Afficher et sauvegarder le graphique combiné
 x11(width = 12, height = 8)
-diff_plot + heat_forcom
-ggsave("output/diff_plot_combin_heat.png",dpi = 300, width = 12, height = 10)
+print(combined_plot)
+ggsave("output/diff_plot_combin_heat.png", plot = combined_plot, dpi = 300, width = 12, height = 10)
 dev.off()
-
-
-
-
 
 
 
