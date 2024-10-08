@@ -93,12 +93,12 @@ plot_res_mibig = function(model, select_level, title, size){
         plot2 = plot_point_mibig(DF2, size)
         plot_merge = ggpubr::ggarrange(plot2, plot1, ncol = 2, common.legend = TRUE, legend = "right", widths = c(0.4, 0.4))
         print(plot_merge)
-        ggsave(paste0("output/", title, ".png"), plot = plot_merge)
+        ggsave(paste0("output/", title, ".png"), plot = plot_merge,width = 15, height = 10 )
     }
     else{
         plot = plot_point_mibig(DF, size)
         print(plot)
-        ggsave(paste0("output/", title, ".png"), plot = plot, width = 10, height = 10)
+        ggsave(paste0("output/", title, ".png"), plot = plot, width = 15, height = 10)
     }
     return(DF)
 }
@@ -149,7 +149,8 @@ model = readRDS("ressources/RDS/corncob_rhizoplane_week4_irrigation.rds")
 df_blast_mibig = read.csv("ressources/data/full_cluster_mibig_blast.txt", sep = "\t", row.names = 1)
 
 # plot the raw results from Dom2BGC
-plot_res_mibig(model, "genus" ,"Rhizoplane week 4 irrigation", 9) # plot the results
+plot(model, "genus")
+plot_res_mibig(model, "genus" ,"Rhizoplane week 4 irrigation", 11) # plot the results
 
 good_tax = model$significant_taxa # extract the significant taxa (amplicon_cluster)
 model$data@tax_table = model$data@tax_table[rownames(model$data@tax_table) %in% good_tax,] # filtering
@@ -190,6 +191,8 @@ for(i in 1:loop){
 }
 
 DF_mibig$simple_product = compound
+
+#DF_mibig2 is empty
 DF_mibig2 = DF_mibig[keep_index,] # remove unique compounds
 
 
@@ -299,20 +302,21 @@ heat_forcom<-amp_mibig_un%>% amp_heatmap(
         panel.spacing = unit(0.1, "lines"),
         axis.ticks.length = unit(0.1, "cm"),
         plot.margin = margin(1, 1, 1, 1, "cm")) + # adjust the margin to reduce the heatmap
-  scale_x_discrete(expand = c(0.01, 0.01))
+  scale_x_discrete(expand = c(0.01, 0.01))+
+    scale_fill_gradient(low = "White", high = "Brown")
 
-    scale_fill_manual(values=c("#018571","#a6611a"))+
+
     
 
 diff_plot <- diff_plot + theme(plot.margin = margin(0, 0, 0, 0, "cm"))
 heat_forcom <- heat_forcom | theme(plot.margin = margin(0, 0, 0, 0, "cm"))
 
-# Combiner les graphiques avec patchwork
+# Combine plot with patchwork
 combined_plot <- diff_plot + heat_forcom + plot_layout(ncol = 2, widths = c(1, 1))
 
-# Afficher et sauvegarder le graphique combiné
+# display combined plot
 x11(width = 12, height = 8)
-print(combined_plot)
+combined_plot
 ggsave("output/diff_plot_combin_heat.png", plot = combined_plot, dpi = 300, width = 12, height = 10)
 dev.off()
 

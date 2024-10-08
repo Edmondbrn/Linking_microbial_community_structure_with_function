@@ -24,13 +24,15 @@ try(setwd(dirname(rstudioapi::getActiveDocumentContext()$path))) # only works on
 physeq = readRDS("ressources/RDS/physeq_ctrl.rds")
 
 physeq4week = subset_samples(physeq, Week == "4") # subset the data to only include 4-week samples
-physeq4week_genus_glom = tax_glom(physeq4week, "Family") # glom the data by genus
+physeq4week_genus_glom = tax_glom(physeq4week, "Genus") # agglommerate the data by genus
 
 
 physeq_4_5week = subset_samples(physeq, Week %in% c("4", "5")) # subset the data to only include 4-week and 5-week samples
 physeq_4_5week_watered = subset_samples(physeq_4_5week, Irrigation == "Watered") # subset the data to only include watered samples
-physeq_4_5week_watered_glom = tax_glom(physeq_4_5week_watered, "Family") # glom the data by genus
+physeq_4_5week_watered_glom = tax_glom(physeq_4_5week_watered, "Genus") # glom the data by genus
 
+physeq5week = subset_samples(physeq, Week == "5") # subset the data to only include 5-week samples
+physeq5week_genus_glom = tax_glom(physeq5week, "Genus") # agglommerate the data by genus
 
 model = binom(physeq4week, "Irrigation") # perform the analysis
 model_glom = binom(physeq4week_genus_glom, "Irrigation") # perform the analysis on the glommed data
@@ -38,11 +40,14 @@ model_glom = binom(physeq4week_genus_glom, "Irrigation") # perform the analysis 
 model4_5_water = binom(physeq_4_5week_watered, "Week") # perform the analysis on the watered samples
 model4_5_water_glom = binom(physeq_4_5week_watered_glom, "Week") # perform the analysis on the glommed watered samples
 model4_5 = binom(physeq_4_5week, "Week") # perform the analysis on the 4-week and 5-week samples
+
+model5 = binom(physeq5week, "Irrigation") # perform the analysis on the 5-week samples
 saveRDS(model, "ressources/RDS/model_4week_irrigation.rds") # save the model
 saveRDS(model_glom, "ressources/RDS/model_4week_irrigation_glom.rds") # save the model
 saveRDS(model4_5_water, "ressources/RDS/model_4_5week_watered.rds") # save the model
 saveRDS(model4_5_water_glom, "ressources/RDS/model_4_5week_watered_glom.rds") # save the model
 saveRDS(model4_5, "ressources/RDS/model_4_5week.rds") # save the model
+saveRDS(model5, "ressources/RDS/model_5week_irrigation.rds") # save the model
 # ==========================================================================================================
 
 
@@ -58,19 +63,34 @@ binom = function(data, variable){
     return(analysis)
 }
 
+capitalize_first <- function(word) {
+    # function to put a capital lettre at the beginning of a word
+    word_list = strsplit(word, "_") # cut the word if there is an underscore
+    word_upper = c()
+    for (i in 1:length(word_list)){ # browse all the subwords
+        if (nchar(word_list[[i]]) > 0)
+            word_upper = c(word_upper, paste0(toupper(substring(word_list[[i]], 1, 1)), tolower(substring(word_list[[i]], 2)))) # put the first letter in capital
+        else
+            word_upper = c(word_upper, word_list[[i]])
+    }
+    word = paste(word_upper, collapse = "_") # reconstruct the word
+    word = gsub("asv", "ASV", word) # put ASV in capital
+    return(word)
+}
+
 plot_point_16S = function(data, size, title, notaglom){ # function to plot the graph
     if (!notaglom)
-        data$taxa = sub("\\(sequence.*", "", data$taxa)
+        data$taxa = sub("\\(sequence.*", "", data$taxa) # remove ASV name (non sens for glommed data)
     else
         data$taxa = gsub("sequence", "ASV", data$taxa)
     data = data %>% arrange(x) # sor the value regading x point position
-    data$taxa = factor(data$taxa, levels = unique(data$taxa)) # sort the taxa for the plot
     negative_x_index = which(data$x < 0)
     if (length(negative_x_index) > 0)
         y_position = data$taxa[max(negative_x_index)]
     else
         y_position = NA
-
+    data$taxa = sapply(data$taxa, function(x) capitalize_first(x))
+    data$taxa = factor(data$taxa, levels = unique(data$taxa)) # sort the taxa for the plot
     plot = ggplot(data, aes(x = x, y = taxa)) +
                 geom_errorbar(aes(xmin = xmin, xmax = xmax), width = 0.2, color = "red") + 
                 geom_point(color = "black") + 
@@ -125,6 +145,7 @@ plot_res_16S = function(model, select_level , title, size, notaglom = TRUE){
         print(plot)
         ggsave(paste0("output/", title, ".png"), plot = plot, width = 10, height = 10)
     }
+    print(DF)
     return(plot)
 }
 
@@ -141,17 +162,21 @@ model4week = readRDS('ressources/RDS/model_4week_irrigation.rds')
 model4week_glom = readRDS('ressources/RDS/model_4week_irrigation_glom.rds')
 model4_5_water = readRDS('ressources/RDS/model_4_5week_watered.rds')
 model4_5_water_glom = readRDS('ressources/RDS/model_4_5week_watered_glom.rds')
+model5 = readRDS('ressources/RDS/model_5week_irrigation.rds')
 
-plot1 = plot_res_16S(model4week, "Family", "16S_4week", 12)
+plot1 = plot_res_16S(model4week, c("Order","Family","Genus"), "16S_4week", 10)
 # plot_res_16S(model4week, c("Family", "Genus"), "16S_4week", 10) for the two levels Family and Genus
-plot2 = plot_res_16S(model4week_glom, "Family","16S_4week_glom", 12)
+plot2 = plot_res_16S(model4week_glom, c("Family","Genus"), "16S_4week_glom", 12, FALSE) # for the glommed data
 
 plot3 = plot_res_16S(model4_5_water, "Family", "16S_4_5week_watered", 12) # Week 5 effect
 plot4 = plot_res_16S(model4_5_water_glom, "Family", "16S_4_5week_watered_glom", 12, FALSE) # week 5 effect
 
+plot5 = plot_res_16S(model5, "Genus", "16S_5week", 12) # watered effect at week 5
 
 # preview for the combined plot
+x11(width = 14, height = 7)
 ggarrange(plot1, plot3, ncol = 2, labels = c("A", "B"))
+x11(width = 14, height = 7)
 ggarrange(plot2, plot4, ncol = 2, labels = c("A", "B"))
 
 
