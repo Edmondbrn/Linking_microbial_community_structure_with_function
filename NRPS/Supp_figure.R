@@ -8,22 +8,18 @@ library(corncob)
 library(phyloseq)
 library(ggplot2)
 library(tidyverse)
-library(ampvis2)
 library(ggpubr)
-library(forcats)
-library(patchwork)
-library(stringr)
+library(ampvis2)
 # ==========================================================================================================
 
 # Load the data
 
 # ==========================================================================================================
-try(setwd(dirname(rstudioapi::getActiveDocumentContext()$path))) # only works on RStudio
-physeq = readRDS("ressources/RDS/raw_physeq_rhizoplane.rds")
-View(physeq@sam_data)
 
-physeq = subset_samples(physeq, Treatment == "Control") # remove control samples
-physeq4week = subset_samples(physeq, WEEK == "week 4") # subset the data to only include 4-week samples
+try(setwd(dirname(rstudioapi::getActiveDocumentContext()$path))) # only works on RStudio
+model = readRDS("ressources/RDS/rhizoplanes_week5_irrigation.rds")
+mibig_annotation = read.csv("ressources/data/full_cluster_mibig_blast.txt", sep = "\t", row.names = 1)
+physeq = readRDS("ressources/RDS/raw_physeq_rhizoplane.rds")
 
 
 # ==========================================================================================================
@@ -47,10 +43,12 @@ binom = function(data, variable){
 
 plot_point_mibig = function(data, size, title){ # function to plot the graph
     data$taxa = gsub("amplicon_cluster", "AC", data$taxa)
+    data$taxa = sapply(data$taxa, function(x) capitalize_first(x))
+    data$taxa = gsub("ac", "AC", data$taxa)
     data$taxa = factor(data$taxa, levels = unique(data$taxa)) # sort the taxa for the plot    
     negative_x_index = which(data$x < 0)
     if (length(negative_x_index) > 0)
-        y_position = data$taxa[max(negative_x_index)]
+        y_position = data$taxa[min(negative_x_index)]
     else
         y_position = NA
     plot = ggplot(data, aes(x = x, y = taxa)) +
@@ -64,9 +62,24 @@ plot_point_mibig = function(data, size, title){ # function to plot the graph
                 theme(axis.text.x = element_text(angle = 0, hjust = 1, size = size), strip.text = element_text(size = size+2, family = "serif"),
                       plot.margin = unit(c(0.5,0.5,0.5,1.5), "cm"))
     if (!is.na(y_position)) {
-        plot = plot + geom_hline(yintercept = as.numeric(y_position) +0.5, color = "black")
+        plot = plot + geom_hline(yintercept = as.numeric(y_position) -0.5, color = "black")
     }
     return(plot)
+}
+
+capitalize_first <- function(word) {
+    # function to put a capital lettre at the beginning of a word
+    word_list = strsplit(word, "_") # cut the word if there is an underscore
+    word_upper = c()
+    for (i in 1:length(word_list)){ # browse all the subwords
+        if (nchar(word_list[[i]]) > 0)
+            word_upper = c(word_upper, paste0(toupper(substring(word_list[[i]], 1, 1)), tolower(substring(word_list[[i]], 2)))) # put the first letter in capital
+        else
+            word_upper = c(word_upper, word_list[[i]])
+    }
+    word = paste(word_upper, collapse = "_") # reconstruct the word
+    word = gsub("asv", "ASV", word) # put ASV in capital
+    return(word)
 }
 
 
@@ -77,6 +90,8 @@ plot_res_mibig = function(model, select_level, title, size){
     DF = df$data
     DF$title = title
     DF$taxa = tolower(DF$taxa)
+    DF = DF %>% arrange(desc(x)) # sort the table before the slicing
+
     
     if (length(grep("_", DF$taxa)) == 1){ # test if there is no ASV number in the data, it happens some time
         for (i in 1:length(DF$taxa)){
@@ -84,7 +99,6 @@ plot_res_mibig = function(model, select_level, title, size){
         }
     } 
     if (dim(DF)[1]>80){
-        DF = DF %>% arrange(desc(x)) # sort the table before the slicing
         DF1 = DF[1:dim(DF)[1] / 2 +1,]
         DF2 = DF[(dim(DF)[1]  / 2 ):dim(DF)[1]+1,]
         # Divide the datframe into two
@@ -121,90 +135,39 @@ simplify_product <- function(product) {
 }
 
 
-# Function to extract the cluster sequences from a model for significant taxa (run blastP on the sequences)
-extract_cluster = function(model){
-    cluster_list = model$significant_taxa # extract the cluster names
-    seq_cluster = readAAStringSet("/home/edmond/NRPS_analysis/data/NRPS/amplicon_cluster.txt") # get the association between the cluster and the ASV sequences
-    nb_cluster = length(cluster_list)
-    top_cluster = AAStringSet() # Initialize an empty DNAStringSet object
-    cpt = 1
-    for (i in cluster_list){
-        top_cluster = c(top_cluster, seq_cluster[names(seq_cluster) == i, ])
-    }
-    print(top_cluster)
-    # ask to tu user the file name
-    file_name = readline(prompt = "Enter the file name (without / or special characters): ")
-    # # Write the combined ASV sequences to a single fasta file
-    writeXStringSet(top_cluster, file = paste0("control_samples_analysis/output_sequence_corncob/", file_name, ".fasta"))
-}
-
 # ============================================================================================================================
 # script
 # ============================================================================================================================
 
+plot_res_mibig(model, "genus", "Week 5 irrigation_taxa_name", 14)
 
-# model = binom(physeq4week, "Irrigation")
-# saveRDS(model, "output/rhizoplane_week4_irrigation.rds")
-
-model = readRDS("ressources/RDS/corncob_rhizoplane_week4_irrigation.rds")
-df_blast_mibig = read.csv("ressources/data/full_cluster_mibig_blast.txt", sep = "\t", row.names = 1)
-
-# plot the raw results from Dom2BGC
-plot(model, "genus")
-plot_res_mibig(model, "genus" ,"Rhizoplane week 4 irrigation", 11) # plot the results
 
 good_tax = model$significant_taxa # extract the significant taxa (amplicon_cluster)
 model$data@tax_table = model$data@tax_table[rownames(model$data@tax_table) %in% good_tax,] # filtering
 model$data@otu_table = model$data@otu_table[rownames(model$data@tax_table),]
-df_blast_mibig = df_blast_mibig[rownames(model$data@tax_table),]
+mibig_annotation = mibig_annotation[rownames(model$data@tax_table),]
 
 tax_table_data = as.data.frame(model$data@tax_table)
-tax_table_data$Product = as.vector(df_blast_mibig$Compound)
-tax_table_data$Organism = as.vector(df_blast_mibig$Organism)
+tax_table_data$Product = as.vector(mibig_annotation$Compound)
+tax_table_data$Organism = as.vector(mibig_annotation$Organism)
 tax_table_data$Product_clean = sapply(tax_table_data$Product, simplify_product)
 
 
 tax_table_data$phylum = tax_table_data$Product_clean # because ampvis remove other column than classical one
 model$data@tax_table = tax_table(as.matrix(tax_table_data))
 
+DF_mibig = plot_res_mibig(model, "phylum", "Week 5 irrigation_mibig_product", 14)
 physeq_mibig = model$data
 ampvis_mibig = amp_load(physeq_mibig)
-saveRDS(ampvis_mibig, "ressources/RDS/ampvis2_rhizoplanes_week4_irrigation_mibig.rds")
-
-
-DF_mibig = plot_res_mibig(model, "Product_clean","Rhizoplane week 4 irrigation", 9) 
-DF_mibig$x
-model$significant_taxa
-tax_table_df = as.data.frame(model$data@tax_table)
-products_double = tax_table_df %>% count(Product_clean) %>% filter(n > 1, Product_clean != "NaN") # get the compound with at least two occurences
-product_twice = tolower(products_double$Product_clean) # for the selection
+saveRDS(ampvis_mibig, "ressources/RDS/ampvis2_rhizoplanes_week5_irrigation_mibig.rds")
 
 
 
-loop = dim(DF_mibig)[1]
-keep_index = c()
-compound = c()
-for(i in 1:loop){
-    trim_product <- trimws(strsplit(DF_mibig$taxa[i], "\\(")[[1]][1])
-    print(trim_product)
-    compound = c(compound, trim_product)
-    if (trim_product %in% product_twice){
-        keep_index = c(keep_index, i) # index with a double compounds
-    }
-}
-
-DF_mibig$simple_product = compound
-
-#DF_mibig2 is empty
-DF_mibig2 = DF_mibig[keep_index,] # remove unique compounds
-
-
-DF_mibig3<-DF_mibig2  # change the ordrer frol taxa to x
+DF_mibig3 = DF_mibig  # change the ordrer frol taxa to x
 DF_mibig3$taxa_clean = gsub("amplicon_cluster", "AC",DF_mibig3$taxa) # replace amplicon_cluster by AC
 DF_mibig3 = DF_mibig3 %>% mutate(taxa_clean = fct_reorder(taxa_clean, x)) # reorder the taxa by x
 DF_mibig3$OTU
 
-mibig_annotation = read.csv("ressources/data/full_cluster_mibig_blast.txt", sep = "\t")
 
 #Subset the ampvis object
 DF_mibig3$OTU<-str_split_fixed(DF_mibig3$taxa," \\(",2) [,2]
@@ -219,22 +182,6 @@ DF_mibig3$genus = sapply(DF_mibig3$genus, function(x) x[1])
 
 distinct_colors <- c("red", "blue", "green", "purple", "orange", "brown", "pink", "cyan", "yellow", "black")
 
-diff_plot<-DF_mibig3  %>% ggplot(aes(x = x, y = taxa_clean)) + geom_point(color = "black")+
-  geom_errorbar(aes(xmin = xmin, xmax = xmax, color = genus), width = 0.2) + 
-  geom_vline(xintercept = 0, linetype = "dashed", color = "black") + 
-  geom_hline(yintercept = 17.5, linetype = "solid", color = "black") + 
-  theme_linedraw() +
-  theme_bw()+
-  labs(x = "", y = "") + # remove the axis labels
-  theme(axis.text.y = element_text(angle = 0, hjust = 1, size = 15, family = "serif"),
-        panel.grid = element_blank())+
-  theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 15), strip.text = element_text(size = 20, family = "serif"),
-        plot.margin = unit(c(0.5,0.5,0.5,1.5), "cm"),
-        legend.position = "bottom",
-        legend.text = element_text(size = 15),
-        legend.title = element_text(size = 18))+
-    scale_color_manual(values = distinct_colors) +
-    guides(color = guide_legend(nrow = 4)) # 3 row for the legend
 
 
 
@@ -247,8 +194,6 @@ ampvis_total = amp_load(physeq_propor)
 
 amp_mibig_un = ampvis_total %>% 
     amp_subset_taxa(tax_vector = DF_mibig3$OTU, normalise = FALSE) # already normalised
-# amp_mibig_un<-ampvis_mibig %>% 
-#   amp_subset_taxa(tax_vector = DF_mibig3$OTU, normalise = TRUE) 
 
 amp_mibig_un$abund
 heat_mibig<-amp_mibig_un%>% amp_heatmap( 
@@ -320,8 +265,5 @@ combined_plot <- diff_plot + heat_forcom + plot_layout(ncol = 2, widths = c(1, 1
 # display combined plot
 x11(width = 12, height = 8)
 combined_plot
-ggsave("output/diff_plot_combin_heat.png", plot = combined_plot, dpi = 300, width = 12, height = 10)
+ggsave("output/diff_plot_combin_heat_week5.png", plot = combined_plot, dpi = 300, width = 12, height = 10)
 dev.off()
-
-
-
