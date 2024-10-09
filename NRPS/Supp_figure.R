@@ -10,6 +10,7 @@ library(ggplot2)
 library(tidyverse)
 library(ggpubr)
 library(ampvis2)
+library(patchwork)
 # ==========================================================================================================
 
 # Load the data
@@ -228,6 +229,30 @@ taxa_re[order(ordered(taxa_re, levels =taxa_re))]
 taxa_re<-factor(levels(DF_mibig3$OTU))
 amp_mibig_un$metadata$Irrigation = ifelse(amp_mibig_un$metadata$Irrigation == "Drought", "Drought", "Control")
 amp_mibig_un$metadata$Irrigation = factor(amp_mibig_un$metadata$Irrigation, levels = c("Drought", "Control")) # reorder to have control on the right
+
+DF_mibig3$taxa_clean = lapply(as.character(DF_mibig3$taxa_clean), function(x) capitalize_first(x))
+DF_mibig3$taxa_clean = gsub("ac", "AC", DF_mibig3$taxa_clean)
+DF_mibig3  = DF_mibig3 %>% arrange(x)
+DF_mibig3$taxa_clean = factor(DF_mibig3$taxa_clean, levels = unique(DF_mibig3$taxa_clean)) # sort the taxa for the plot
+
+diff_plot<-DF_mibig3  %>% ggplot(aes(x = x, y = taxa_clean)) + geom_point(color = "black")+
+  geom_errorbar(aes(xmin = xmin, xmax = xmax, color = genus), width = 0.2) + 
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") + 
+  geom_hline(yintercept = 11.5, linetype = "solid", color = "black") + 
+  theme_linedraw() +
+  theme_bw()+
+  labs(x = "", y = "") + # remove the axis labels
+  theme(axis.text.y = element_text(angle = 0, hjust = 1, size = 15, family = "serif"),
+        panel.grid = element_blank())+
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 15), strip.text = element_text(size = 20, family = "serif"),
+        plot.margin = unit(c(0.5,0.5,0.5,1.5), "cm"),
+        legend.position = "bottom",
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 18))+
+    scale_color_manual(values = distinct_colors) +
+    guides(color = guide_legend(nrow = 5))
+
+
 
 heat_forcom<-amp_mibig_un%>% amp_heatmap( 
   group_by = "Irrigation",

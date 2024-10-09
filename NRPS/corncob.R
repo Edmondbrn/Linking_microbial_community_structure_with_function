@@ -77,14 +77,14 @@ plot_res_mibig = function(model, select_level, title, size){
     DF = df$data
     DF$title = title
     DF$taxa = tolower(DF$taxa)
-    
+    DF = DF %>% arrange(desc(x)) # sort the table before the slicing
+
     if (length(grep("_", DF$taxa)) == 1){ # test if there is no ASV number in the data, it happens some time
         for (i in 1:length(DF$taxa)){
             DF$taxa[[i]] =  gsub(".*", paste0(DF$taxa[[i]] ," (", model$significant_taxa[[i]],")"), DF$taxa[[i]])
         }
     } 
     if (dim(DF)[1]>80){
-        DF = DF %>% arrange(desc(x)) # sort the table before the slicing
         DF1 = DF[1:dim(DF)[1] / 2 +1,]
         DF2 = DF[(dim(DF)[1]  / 2 ):dim(DF)[1]+1,]
         # Divide the datframe into two
@@ -150,7 +150,6 @@ model = readRDS("ressources/RDS/corncob_rhizoplane_week4_irrigation.rds")
 df_blast_mibig = read.csv("ressources/data/full_cluster_mibig_blast.txt", sep = "\t", row.names = 1)
 
 # plot the raw results from Dom2BGC
-plot(model, "genus")
 plot_res_mibig(model, "genus" ,"Rhizoplane week 4 irrigation", 11) # plot the results
 
 good_tax = model$significant_taxa # extract the significant taxa (amplicon_cluster)
@@ -195,7 +194,6 @@ for(i in 1:loop){
 
 DF_mibig$simple_product = compound
 
-#DF_mibig2 is empty
 DF_mibig2 = DF_mibig[keep_index,] # remove unique compounds
 
 
