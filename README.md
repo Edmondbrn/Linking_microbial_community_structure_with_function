@@ -26,5 +26,5 @@ https://www.biorxiv.org/content/10.1101/2024.08.28.609728v1.abstract
 
 ## Authors
 
-- [@Frederik BAK](f.bak@plen.ku.dk)
-- [@Edmond BERNE](edmond.berne6@gmail.com)
+- **Frederik BAK** (f.bak@plen.ku.dk)
+- **Edmond BERNE** (edmond.berne6@gmail.com)
