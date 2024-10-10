@@ -95,7 +95,14 @@ annotated_proportions<-ggplot(combined_dfs, aes(x = Treatment, y = Proportion, f
         panel.grid = element_blank(),
         axis.text.x = element_text(size = 8)) +
   scale_y_continuous(expand = c(0,0))+
-    scale_fill_manual(values =   c("#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"))
+    scale_fill_manual(values =   c("#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3", "#a6d854", "#ffd92f", "#e5c494", "#b3b3b3"),
+                                   labels = c("Actinomycetota (64-73%)",
+                                              "Bacillota (0.32-0.84%)",
+                                              "Gemmatimonadota (0.11-0.28%)",
+                                              "Myxococcota (8.1-13%)",
+                                              "Plantomycetota (0.045%)",
+                                              "Proteobacteria (18-24%)",
+                                              "Verrucomicrobiota (0.14-0.22%)"))
   
 
 
@@ -127,7 +134,7 @@ heatmap_rp<-Rarefied_amp_mean_rp%>% amp_heatmap(group_by = "Irrigation", facet_b
 
 library(ggpubr)
 x11(width = 7, height = 8)
-ggarrange(annotated_proportions,heatmap_rp, ncol = 1 , labels = c("A","B"), heights = c(0.3,0.7))
+ggarrange(annotated_proportions,heatmap_rp, ncol = 1 , labels = c("A","B"), heights = c(0.4,0.7))
 
 ggsave("output/Fig3.png",dpi = 300)
 dev.off()
