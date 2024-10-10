@@ -168,7 +168,7 @@ model$data@tax_table = tax_table(as.matrix(tax_table_data))
 
 physeq_mibig = model$data
 ampvis_mibig = amp_load(physeq_mibig)
-saveRDS(ampvis_mibig, "ressources/RDS/ampvis2_rhizoplanes_week4_irrigation_mibig.rds")
+#saveRDS(ampvis_mibig, "ressources/RDS/ampvis2_rhizoplanes_week4_irrigation_mibig.rds")
 
 
 DF_mibig = plot_res_mibig(model, "Product_clean","Rhizoplane week 4 irrigation", 9) 
@@ -229,10 +229,12 @@ diff_plot<-DF_mibig3  %>% ggplot(aes(x = x, y = taxa_clean)) + geom_point(color 
   theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 15), strip.text = element_text(size = 20, family = "serif"),
         plot.margin = unit(c(0.5,0.5,0.5,1.5), "cm"),
         legend.position = "bottom",
+        legend.justification = c(1,1),
         legend.text = element_text(size = 15),
         legend.title = element_text(size = 18))+
-    scale_color_manual(values = distinct_colors) +
-    guides(color = guide_legend(nrow = 4)) # 3 row for the legend
+    scale_color_manual(name = "Genus",values = distinct_colors, labels = c("Amycolatopsis","Bacillus","Corallococcus",
+                                                                           "Cystobacter","Halomonas","Pseudomonas","Streptomyces","Unknown")) +
+    guides(color = guide_legend(nrow = 4)) # 4 row for the legend
 
 
 

@@ -1,5 +1,5 @@
 # NRPS Rhizoplane drought - control comparison - alpha and beta diversity
-## DO the same but for the drought - control rhizoplane comparison
+
 library(tidyverse)
 library(ggplot2)
 library(ggpubr)
@@ -32,7 +32,8 @@ alpha_div_plane$Compartments<-gsub("r","R",alpha_div_plane$Compartments)
 symnum.args2 <- list(cutpoints = c(0,  0.001, 0.01, 0.05, Inf), symbols = c( "***", "**", "*", "ns"))
 
 
-Shan_plot_rp<-alpha_div_plane %>% ggplot(aes(x = Irrigation, y = Shannon))+geom_point() +
+Shan_plot_rp<-alpha_div_plane %>% ggplot(aes(x = Irrigation, y = Shannon, color = Irrigation))+
+  geom_point() +
   facet_grid(~ WEEK, scales = "free_x") + #organise the plot by week
   theme_bw() +theme(axis.title.x =element_blank(), legend.position = "none", panel.grid = element_blank(),
                     axis.text = element_text(size = 10), axis.title = element_text (size = 12, face = "bold"),
@@ -40,7 +41,8 @@ Shan_plot_rp<-alpha_div_plane %>% ggplot(aes(x = Irrigation, y = Shannon))+geom_
                     strip.text = element_text(size =12))+
   scale_y_continuous(breaks = c(6,6.5,7,7.5), limits = c(6,7.5), expand = c(0,0))+
   stat_compare_means(aes(group = Irrigation), label = "p.signif",
-                     method = "t.test", symnum.args = symnum.args2 , label.y =7.4, label.x = 1.4)
+                     method = "t.test", symnum.args = symnum.args2 , label.y =7.4, label.x = 1.4)+
+  scale_color_manual(values=c("#018571","#a6611a"))
 
 
 # ======================= Beta diversity ====================================
@@ -51,7 +53,7 @@ plot_pcoa = function(data, color,  Shape, filename){
   print("Plotting PCoA")
   
   p3 = plot_ordination(data, physeq.ord_pcoa, shape = Shape) +
-    scale_color_manual(values=c("#018571","#a6611a"),name = "Irrigation") +
+    scale_color_manual(values=c("#a6611a","#018571"),name = "Irrigation", labels = c("Drought","Control")) +
     geom_point(size = 4, aes(color = !!sym(color))) +  # Use aes with sym
     theme_bw() +
     theme(axis.text = element_text(size = 10, face = "bold"), axis.title = element_text(size = 12, face = "bold"), 
@@ -68,6 +70,7 @@ plot_pcoa = function(data, color,  Shape, filename){
 p4<- plot_pcoa(Rarefied_physeq_mean_rounded_rhizoplane, "Irrigation",  "WEEK", "output/PCoA_NRPS_rp.png")
 pcoa_NRPS_rp<-p4[[1]]
 
+pcoa_NRPS_rp
 #Extract the legend
 pcoa_legend<-get_legend(pcoa_NRPS_rp)
 leg_for_plot<-ggarrange(pcoa_legend)
@@ -75,7 +78,7 @@ leg_for_plot<-ggarrange(pcoa_legend)
 p3<-pcoa_NRPS_rp+theme(legend.position = "none")
 library(patchwork)  
 
-all_plots_t<-Shan_plot_rp+p3+leg_for_plot+patchwork::plot_layout(widths = c(3,2,1))
+all_plots_t<-Shan_plot_rp+p3+leg_for_plot+patchwork::plot_layout(widths = c(3.6,2,1))
 all_plots_t[[3]]<-all_plots_t[[3]]+plot_layout(tag_level ='new')
 all_plots_t+patchwork::plot_annotation(tag_levels = ("A"))
 
