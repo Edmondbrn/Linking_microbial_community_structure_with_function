@@ -16,16 +16,16 @@ physeq_rare_mean_rounded = readRDS("ressources/RDS/Rarefied_physeq_mean_rounded.
 
 ### Alpha diversity
 physeq_rare_mean_rounded@sam_data$Week = ifelse(physeq_rare_mean_rounded@sam_data$Week== 2, "week 2",
-                                                ifelse(physeq_rare_mean_rounded@sam_data$Week == 4, "week 4", "week 5"))
+                                                ifelse(physeq_rare_mean_rounded@sam_data$Week == 4, "week 4", "week 6"))
 
 alpha_div = estimate_richness(physeq_rare_mean_rounded, measures = c("Shannon", "Chao1")) # compute alpha diversity
 alpha_div = cbind(alpha_div, physeq_rare_mean_rounded@sam_data) # add the factor to the new table
 
 alpha_div_2week = alpha_div %>% filter(Week == "week 2")
 alpha_div_4week = alpha_div %>% filter(Week == "week 4")
-alpha_div_5week = alpha_div %>% filter(Week == "week 5")
+alpha_div_6week = alpha_div %>% filter(Week == "week 6")
 
-alpha_all<-rbind(alpha_div_2week,alpha_div_4week,alpha_div_5week)
+alpha_all<-rbind(alpha_div_2week,alpha_div_4week,alpha_div_6week)
 alpha_all$Irrigation[alpha_all$Irrigation %in% "Watered"]<-"Control"
 
 symnum.args2 <- list(cutpoints = c(0,  0.001, 0.01, 0.05, Inf), symbols = c( "***", "**", "*", "ns"))
@@ -60,7 +60,7 @@ plot_pcoa = function(data, color, cluster, Shape, filename){
     scale_color_manual(values=c("#018571","#a6611a")) +
     geom_point(size = 4, aes(color = !!sym(color))) +  # Use aes with sym
     theme_bw() +
-    theme(axis.text = element_text(size = 15), axis.title = element_text(size = 25), 
+    theme(axis.text = element_text(size = 15), axis.title = element_text(size = 20), 
           legend.text = element_text(size = 18), legend.title = element_text(size = 20))
   
 
@@ -74,19 +74,19 @@ plot_pcoa = function(data, color, cluster, Shape, filename){
 sample_data(physeq_rare_mean_rounded)$Irrigation[sample_data(physeq_rare_mean_rounded)$Irrigation %in% "Watered"]<-"Control"
 p4 = plot_pcoa(physeq_rare_mean_rounded, "Irrigation", "Group", "Week", "output/PCoA_16S_rRNA_cluster.png")
 
-pcoa_16S<-p4[[1]]
+pcoa_16S<-p4[[1]]+labs(color = "Irrigation")
 
 
 ### Plant data
 week2d<-read_excel("ressources/2 weeks.xlsx", sheet = "Sheet1")
 week4d<-read_excel("ressources/4 weeks.xlsx", sheet = "Sheet1")
-week5d<-read_excel("ressources/5 weeks.xlsx", sheet = "Sheet1") 
+week6d<-read_excel("ressources/5 weeks.xlsx", sheet = "Sheet1") 
 
 week2<-week2d %>% select(-Shootdryweight) %>% mutate(Week="Week2")%>% filter(Treatment %in% "Water")
 week4<-week4d %>% select(-Treatment1) %>% mutate(Week="Week4")%>% filter(Treatment %in% "Water")
-week5<-week5d %>% select(-Treatment1,-Sootdryweight)%>% mutate(Week="Week5")%>% filter(Treatment %in% "Water")
+week6<-week6d %>% select(-Treatment1,-Sootdryweight)%>% mutate(Week="Week6")%>% filter(Treatment %in% "Water")
 
-All_data<-rbind(week2,week4,week5)  %>% select(-Treatment)
+All_data<-rbind(week2,week4,week6)  %>% select(-Treatment)
 
 All_data$Group[All_data$Group %in% "irrigated"]<-"Control"
 colnames(All_data)[2]<-"Irrigation"

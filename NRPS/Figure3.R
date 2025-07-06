@@ -89,6 +89,10 @@ combined_dfs # Proportion of NRPS for each phylum
 
 combined_dfs$Phylum<-gsub("Pseudomonadota","Proteobacteria",combined_dfs$Phylum)
 
+#Change from 5 to 6.
+combined_dfs$Treatment<-gsub("W5 D","W6 D",combined_dfs$Treatment)
+combined_dfs$Treatment<-gsub("W5 C","W6 C",combined_dfs$Treatment)
+
 annotated_proportions<-ggplot(combined_dfs, aes(x = Treatment, y = Proportion, fill = Phylum)) + geom_bar(position="fill", stat="identity")+
   theme_bw()+
   theme(legend.position = "right", legend.text = element_text(size = 10),
@@ -121,7 +125,7 @@ Rarefied_amp_mean_rp$metadata$Irrigation[Rarefied_amp_mean_rp$metadata$Irrigatio
 Rarefied_amp_mean_rp$metadata$Irrigation[Rarefied_amp_mean_rp$metadata$Irrigation %in% "Drought"]<-"D"
 Rarefied_amp_mean_rp$metadata$WEEK[Rarefied_amp_mean_rp$metadata$WEEK %in% "2weeks"]<-"Week 2"
 Rarefied_amp_mean_rp$metadata$WEEK[Rarefied_amp_mean_rp$metadata$WEEK %in% "4weeks"]<-"Week 4"
-Rarefied_amp_mean_rp$metadata$WEEK[Rarefied_amp_mean_rp$metadata$WEEK %in% "5weeks"]<-"Week 5"
+Rarefied_amp_mean_rp$metadata$WEEK[Rarefied_amp_mean_rp$metadata$WEEK %in% "5weeks"]<-"Week 6"
 
 Rarefied_amp_mean_rp$tax$OTU<-gsub("amplicon_cluster","AC",Rarefied_amp_mean_rp$tax$OTU)
 heatmap_rp<-Rarefied_amp_mean_rp%>% amp_heatmap(group_by = "Irrigation", facet_by = "WEEK",

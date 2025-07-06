@@ -49,6 +49,7 @@ red_CLPs<-CLP_mibig_red %>% group_by(Compound) %>%
 CLP_ACs<-CLP_mibig_red$Query
 #Subset the data as above using all of these
 
+amp_control$metadata$WEEK<-gsub("week 5","week 6",amp_control$metadata$WEEK)
 
 heatmap_CLPs_all<-amp_control %>% amp_subset_taxa(tax_vector = CLP_ACs,normalise = TRUE) %>%
   amp_heatmap(group_by = "Irrigation", facet_by ="WEEK",
@@ -99,7 +100,7 @@ CLP_mean_vals$Compound
 CLP_mean_vals$sum<-round(CLP_mean_vals$sum,4)
 
 CLP_mean_vals$Week_treat<-as.character(CLP_mean_vals$Week_treat)
-CLP_mean_vals$Week_treat<-factor(CLP_mean_vals$Week_treat, levels = c("Watered week 2","Watered week 4","Drought week 4", "Watered week 5","Drought week 5"))
+CLP_mean_vals$Week_treat<-factor(CLP_mean_vals$Week_treat, levels = c("Watered week 2","Watered week 4","Drought week 4", "Watered week 6","Drought week 6"))
 
 # add the week numbers as a variable
 CLP_means_full<-cbind(CLP_mean_vals,str_split_fixed(CLP_mean_vals$Week_treat," ", 2))

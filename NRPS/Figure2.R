@@ -27,7 +27,7 @@ alpha_div_plane
 
 alpha_div_plane$Irrigation<-gsub("Watered","Control",alpha_div_plane$Irrigation)
 alpha_div_plane$Compartments<-gsub("r","R",alpha_div_plane$Compartments)
-
+alpha_div_plane$WEEK<-gsub("5 weeks","6 weeks", alpha_div_plane$WEEK)
 
 symnum.args2 <- list(cutpoints = c(0,  0.001, 0.01, 0.05, Inf), symbols = c( "***", "**", "*", "ns"))
 
@@ -67,12 +67,18 @@ plot_pcoa = function(data, color,  Shape, filename){
 }
 
 #Import data
+sample_data(Rarefied_physeq_mean_rounded_rhizoplane)$WEEK<-gsub("5weeks","6 weeks",sample_data(Rarefied_physeq_mean_rounded_rhizoplane)$WEEK)
+sample_data(Rarefied_physeq_mean_rounded_rhizoplane)$WEEK<-gsub("4weeks","4 weeks",sample_data(Rarefied_physeq_mean_rounded_rhizoplane)$WEEK)
+sample_data(Rarefied_physeq_mean_rounded_rhizoplane)$WEEK<-gsub("2weeks","2 weeks",sample_data(Rarefied_physeq_mean_rounded_rhizoplane)$WEEK)
+
+
 p4<- plot_pcoa(Rarefied_physeq_mean_rounded_rhizoplane, "Irrigation",  "WEEK", "output/PCoA_NRPS_rp.png")
 pcoa_NRPS_rp<-p4[[1]]
 
-pcoa_NRPS_rp
+pcoa_NRPS_rp2<-pcoa_NRPS_rp+labs(shape = "Week")
+
 #Extract the legend
-pcoa_legend<-get_legend(pcoa_NRPS_rp)
+pcoa_legend<-get_legend(pcoa_NRPS_rp2)
 leg_for_plot<-ggarrange(pcoa_legend)
 
 p3<-pcoa_NRPS_rp+theme(legend.position = "none")
