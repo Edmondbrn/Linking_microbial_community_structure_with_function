@@ -16,7 +16,7 @@ library(patchwork)
 # Load the data
 
 # ==========================================================================================================
-
+# setwd("/home/be203133/Linking_microbial_community_structure_with_function/NRPS")
 try(setwd(dirname(rstudioapi::getActiveDocumentContext()$path))) # only works on RStudio
 model = readRDS("ressources/RDS/rhizoplanes_week5_irrigation.rds")
 mibig_annotation = read.csv("ressources/data/full_cluster_mibig_blast.txt", sep = "\t", row.names = 1)
@@ -70,13 +70,14 @@ plot_point_mibig = function(data, size, title){ # function to plot the graph
 
 capitalize_first <- function(word) {
     # function to put a capital lettre at the beginning of a word
-    word_list = strsplit(word, "_") # cut the word if there is an underscore
+    word_list = strsplit(word, "_")[[1]] # Get the first element of the result list
     word_upper = c()
     for (i in 1:length(word_list)){ # browse all the subwords
-        if (nchar(word_list[[i]]) > 0)
-            word_upper = c(word_upper, paste0(toupper(substring(word_list[[i]], 1, 1)), tolower(substring(word_list[[i]], 2)))) # put the first letter in capital
+        if (nchar(word_list[i]) > 0)
+            word_upper = c(word_upper, paste0(toupper(substring(word_list[i], 1, 1)), 
+                                             tolower(substring(word_list[i], 2)))) 
         else
-            word_upper = c(word_upper, word_list[[i]])
+            word_upper = c(word_upper, word_list[i])
     }
     word = paste(word_upper, collapse = "_") # reconstruct the word
     word = gsub("asv", "ASV", word) # put ASV in capital
@@ -162,13 +163,10 @@ physeq_mibig = model$data
 ampvis_mibig = amp_load(physeq_mibig)
 saveRDS(ampvis_mibig, "ressources/RDS/ampvis2_rhizoplanes_week5_irrigation_mibig.rds")
 
-
-
-DF_mibig3 = DF_mibig  # change the ordrer frol taxa to x
+DF_mibig3 = DF_mibig  # change the ordrer for taxa to x
 DF_mibig3$taxa_clean = gsub("amplicon_cluster", "AC",DF_mibig3$taxa) # replace amplicon_cluster by AC
 DF_mibig3 = DF_mibig3 %>% mutate(taxa_clean = fct_reorder(taxa_clean, x)) # reorder the taxa by x
 DF_mibig3$OTU
-
 
 #Subset the ampvis object
 DF_mibig3$OTU<-str_split_fixed(DF_mibig3$taxa," \\(",2) [,2]
@@ -177,13 +175,11 @@ DF_mibig3$OTU<-gsub("\\)","",DF_mibig3$OTU)
 DF_mibig3$OTU<-factor(reorder(DF_mibig3$OTU,desc(DF_mibig3$x)))
 
 # DF_mibig3$genus = as.data.frame(physeq4week@tax_table)$genus[rownames(physeq4week@tax_table) %in% DF_mibig3$OTU] # dom2BGC
-DF_mibig3$genus = strsplit(mibig_annotation$Organism[mibig_annotation$Query %in% DF_mibig3$OTU], " ") # mibig
+DF_mibig3$genus = strsplit(mibig_annotation$Organism[rownames(mibig_annotation) %in% DF_mibig3$OTU], " ") # mibig
 DF_mibig3$genus = sapply(DF_mibig3$genus, function(x) x[1])
 
 
 distinct_colors <- c("red", "blue", "green", "purple", "orange", "brown", "pink", "cyan", "yellow", "black")
-
-
 
 
 # normalisation from the original phyloseq object (with all ASVs)
@@ -197,36 +193,36 @@ amp_mibig_un = ampvis_total %>%
     amp_subset_taxa(tax_vector = DF_mibig3$OTU, normalise = FALSE) # already normalised
 
 amp_mibig_un$abund
-heat_mibig<-amp_mibig_un%>% amp_heatmap( 
-  group_by = "Irrigation",
-  tax_aggregate = "OTU",
-  
-  facet_by = "Irrigation",
-  
-  plot_values = T,
-  normalise = F,
-  tax_show = 25,
-  color_vector = c("royalblue4", "whitesmoke", "darkred")) +
-  theme(strip.background = element_rect(fill = "darkgray"),
-        strip.text = element_text(color = "black", size = 17),
-        axis.text = element_text(family = "serif"),
-        axis.text.x = element_blank(),
-        axis.text.y = element_text(size = 12),
-        legend.title = element_text(size = 15),
-        legend.text = element_text(size = 12),
-        panel.spacing = unit(0.1, "lines"),
-        axis.ticks.length = unit(0.1, "cm"),
-        plot.margin = margin(1, 10, 1, 10, "cm")) + # adjust the margin to reduce the heatmap
-  scale_x_discrete(expand = c(0.01, 0.01))
+heat_mibig <- amp_mibig_un %>% 
+    amp_heatmap( 
+        group_by = "Irrigation",
+        tax_aggregate = "OTU",
+        
+        facet_by = "Irrigation",
+        
+        plot_values = T,
+        normalise = F,
+        tax_show = 25,
+        color_vector = c("royalblue4", "whitesmoke", "darkred")) +
+        theme(strip.background = element_rect(fill = "darkgray"),
+                strip.text = element_text(color = "black", size = 17),
+                axis.text = element_text(family = "serif"),
+                axis.text.x = element_blank(),
+                axis.text.y = element_text(size = 12),
+                legend.title = element_text(size = 15),
+                legend.text = element_text(size = 12),
+                panel.spacing = unit(0.1, "lines"),
+                axis.ticks.length = unit(0.1, "cm"),
+                plot.margin = margin(1, 10, 1, 10, "cm")) + # adjust the margin to reduce the heatmap
+        scale_x_discrete(expand = c(0.01, 0.01)
+    )
+ggsave("heat_mibig.jpeg", heat_mibig)
+
 
 taxa_o<-heat_mibig$data$Display
-unique(taxa_o)
 taxa_o<-levels(droplevels(taxa_o))
 
-
-levels(DF_mibig3$OTU)
-taxa_re[order(ordered(taxa_re, levels =taxa_re))]
-taxa_re<-factor(levels(DF_mibig3$OTU))
+taxa_re <- factor(levels(DF_mibig3$OTU))
 amp_mibig_un$metadata$Irrigation = ifelse(amp_mibig_un$metadata$Irrigation == "Drought", "Drought", "Control")
 amp_mibig_un$metadata$Irrigation = factor(amp_mibig_un$metadata$Irrigation, levels = c("Drought", "Control")) # reorder to have control on the right
 
