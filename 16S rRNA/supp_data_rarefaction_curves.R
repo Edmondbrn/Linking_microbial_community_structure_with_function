@@ -71,22 +71,27 @@ ampvis_data = amp_load(physeq)
 Rarecurve = function(data, col, type) { 
   cat("Creating rarefaction curve for ", type, " samples\n")
   p3 = amp_rarecurve(data, color_by = col, stepsize = 100, facet_by = "Treatment")
-  p3 = p3 + theme(axis.text = element_text(size = 14), 
+  p3 = p3 +
+    theme(axis.text = element_text(size = 14), 
              axis.title = element_text(size = 20), 
              legend.text = element_text(size = 15), 
-             legend.title = element_text(size = 15)) +
+             legend.title = element_text(size = 15),
+             strip.text.x = element_blank()) +
     theme_minimal(base_family = "serif") +
     theme(axis.text = element_text(angle = 0, hjust = 0.5, size = 14),
           axis.title = element_text(size = 20), 
           axis.text.y = element_text(angle = 0),
-          strip.text = element_text(size = 20),
+          
           legend.text = element_text(size = 18),  # Agrandir le texte du titre de chaque facette + # Mettre les graduations à l'horizontale et les agrandir
            legend.title = element_text(size = 20))+
     labs(y = "Number of ASVs")+
     geom_line(linewidth = 1.5)
   cat("Saving the plot\n")
-  ggsave(paste0("output/rarefaction_curve_control_", type ,".png"), width = 10, height = 10)
+ 
   return(p3)
 }
 
 p1 = Rarecurve(data = ampvis_data, col = "Week", type = "Rhizoplane")
+p5<-p1+theme(strip.text.x = element_blank())
+
+ggsave("output/rarefaction_curve_control.png",p5 , width = 10, height = 10)
