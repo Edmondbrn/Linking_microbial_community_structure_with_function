@@ -10,9 +10,12 @@ library(ggplot2)
 library(tidyverse)
 library(ggpubr)
 library(ampvis2)
-library(patchwork)
 
+# ===========================================================================================================
 
+# Functions
+
+# ==========================================================================================================
 
 binom = function(data, variable){
     # create the formula
@@ -41,67 +44,7 @@ simplify_product <- function(product) {
     base_product = words[1]
   return(base_product)
 }
-
-plot_res_mibig = function(model, select_level, title, size){
-    if (length(model$significant_taxa) ==  0)
-        return("Error, no significant taxa found")
-    df = plot(model, total = T, B = 1000, level = select_level, dataonly = T)
-    DF = df$data
-    DF$title = title
-    DF$taxa = tolower(DF$taxa)
-    DF = DF %>% arrange(desc(x)) # sort the table before the slicing
-
-    
-    if (length(grep("_", DF$taxa)) == 1){ # test if there is no ASV number in the data, it happens some time
-        for (i in 1:length(DF$taxa)){
-            DF$taxa[[i]] =  gsub(".*", paste0(DF$taxa[[i]] ," (", model$significant_taxa[[i]],")"), DF$taxa[[i]])
-        }
-    } 
-    if (dim(DF)[1]>80){
-        DF1 = DF[1:dim(DF)[1] / 2 +1,]
-        DF2 = DF[(dim(DF)[1]  / 2 ):dim(DF)[1]+1,]
-        # Divide the datframe into two
-        # plot according to the treatment
-        plot1 = plot_point_mibig(DF1, size)
-        plot2 = plot_point_mibig(DF2, size)
-        plot_merge = ggpubr::ggarrange(plot2, plot1, ncol = 2, common.legend = TRUE, legend = "right", widths = c(0.4, 0.4))
-        print(plot_merge)
-        ggsave(paste0("output/", title, ".png"), plot = plot_merge,width = 15, height = 10 )
-    }
-    else {
-        plot = plot_point_mibig(DF, size)
-        print(plot)
-        ggsave(paste0("output/", title, ".png"), plot = plot, width = 15, height = 10)
-    }
-    return(DF)
-}
-
-plot_point_mibig = function(data, size, title){ # function to plot the graph
-    data$taxa = gsub("amplicon_cluster", "AC", data$taxa)
-    data$taxa = sapply(data$taxa, function(x) capitalize_first(x))
-    data$taxa = gsub("ac", "AC", data$taxa)
-    data$taxa = factor(data$taxa, levels = unique(data$taxa)) # sort the taxa for the plot    
-    negative_x_index = which(data$x < 0)
-    if (length(negative_x_index) > 0)
-        y_position = data$taxa[min(negative_x_index)]
-    else
-        y_position = NA
-    plot = ggplot(data, aes(x = x, y = taxa)) +
-                geom_errorbar(aes(xmin = xmin, xmax = xmax), width = 0.2, color = "red") + 
-                geom_point(color = "black") + 
-                geom_vline(xintercept = 0, linetype = "dashed", color = "black") + 
-                theme_linedraw() +
-                # facet_grid(. ~ title)+
-                labs(x = "", y = "") + # remove the axis labels
-                theme(axis.text.y = element_text(angle = 0, hjust = 1, size = size, family = "serif"))+
-                theme(axis.text.x = element_text(angle = 0, hjust = 1, size = size), strip.text = element_text(size = size+2, family = "serif"),
-                      plot.margin = unit(c(0.5,0.5,0.5,1.5), "cm"))
-    if (!is.na(y_position)) {
-        plot = plot + geom_hline(yintercept = as.numeric(y_position) -0.5, color = "black")
-    }
-    return(plot)
-}
-
+# put an upper case only to the first character of a string
 capitalize_first <- function(word) {
     # function to put a capital lettre at the beginning of a word
     word_list = strsplit(word, "_")[[1]] # Get the first element of the result list
@@ -120,23 +63,24 @@ capitalize_first <- function(word) {
 
 
 generate_heatmap = function(model, file_name) {
-    good_tax = model_4_5$significant_taxa # extract the significant taxa (amplicon_cluster)
-    model_4_5$data@tax_table = model_4_5$data@tax_table[rownames(model_4_5$data@tax_table) %in% good_tax,] # filtering
-    model_4_5$data@otu_table = model_4_5$data@otu_table[rownames(model_4_5$data@tax_table),]
-    mibig_annotation = mibig_annotation[rownames(model_4_5$data@tax_table),]
+    good_tax = model$significant_taxa # extract the significant taxa (amplicon_cluster)
+    model$data@tax_table = model$data@tax_table[rownames(model$data@tax_table) %in% good_tax,] # filtering
+    model$data@otu_table = model$data@otu_table[rownames(model$data@tax_table),]
+    mibig_annotation = mibig_annotation[rownames(model$data@tax_table),]
     # add fields to the results
-    tax_table_data = as.data.frame(model_4_5$data@tax_table)
+    tax_table_data = as.data.frame(model$data@tax_table)
     tax_table_data$Product = as.vector(mibig_annotation$Compound)
-    tax_table_data$Organism = as.vector(mibig_annotation$Organism)
     tax_table_data$Product_clean = sapply(tax_table_data$Product, simplify_product)
+    # Create a label column for the y-lab plot
     tax_table_data$Label <- paste(
-    ifelse(is.na(tax_table_data$Organism), "Unknown", tax_table_data$Organism),
+    ifelse(is.na(tax_table_data$genus), "Unknown", tax_table_data$genus),
     ifelse(is.na(tax_table_data$Product_clean), "Unknown", tax_table_data$Product_clean),
     sep = " | "
     )
     tax_table_data$phylum <- tax_table_data$Label # because ampvis remove other column than classical one
-    model_4_5$data@tax_table = tax_table(as.matrix(tax_table_data))
-    physeq_mibig = model_4_5$data
+    # updtate the phyloseq object
+    model$data@tax_table = tax_table(as.matrix(tax_table_data))
+    physeq_mibig = model$data
 
 
     # normalisation from the original phyloseq object (with all ASVs)
@@ -160,9 +104,10 @@ generate_heatmap = function(model, file_name) {
         group_by = "WEEK",
         tax_aggregate = "Phylum", # dummy column to store product names and organism names
         facet_by = "WEEK",
+        round = 2,
         plot_values = TRUE,
-        normalise = FALSE,
-        tax_show = 25,
+        normalise = FALSE, # hand made normalisation before
+        tax_show = 30,
         color_vector = c("#018571", "whitesmoke", "#a6611a")
     ) +
     theme_minimal(base_family = "serif") +
@@ -178,8 +123,8 @@ generate_heatmap = function(model, file_name) {
         panel.grid = element_blank(),
         panel.border = element_rect(color = "black", fill = NA, linewidth = 1)
     )
-
     ggsave(file_name, heat_mibig, width = 12, height = 10)
+    return (heat_mibig)
 
 }
 
@@ -191,8 +136,13 @@ generate_heatmap = function(model, file_name) {
 
 physeq = readRDS("ressources/RDS/raw_physeq_rhizoplane.rds")
 mibig_annotation = read.csv("ressources/data/full_cluster_mibig_blast.txt", sep = "\t", row.names = 1)
-model_2_4 = readRDS("ressources/RDS/rhizoplanes_week2_4_WEEK.rds")
-model_4_5 = readRDS("ressources/RDS/rhizoplanes_week4_5_WEEK.rds")
+model_2_4 = readRDS("ressources/RDS/plane_WC_week2_4.rds")
+model_4_5 = readRDS("ressources/RDS/plane_WC_week4_5.rds")
+model_2_5 = readRDS("ressources/RDS/plane_WC_week2_5.rds")
+model_4_5_drought = readRDS("ressources/RDS/plane_DC_week4_5.rds")
 
-generate_heatmap(model_2_4, "output/week_2_vs_4_abundance.jpeg")
-generate_heatmap(model_4_5, "output/week_4_vs_5_abundance.jpeg")
+p1 = generate_heatmap(model_2_4, "output/S9_figure.png")
+p2 = generate_heatmap(model_4_5, "output/S10_figure.png")
+# extra plots
+p3 = generate_heatmap(model_2_5, "output/week_2_vs_5_abundance.png")
+p4 = generate_heatmap(model_4_5_drought, "output/week_4_vs_5_abundance_drought.png")
